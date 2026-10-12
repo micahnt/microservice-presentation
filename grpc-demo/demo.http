@@ -1,0 +1,38 @@
+### gRPC demo requests (VS Code REST Client or Visual Studio .http)
+@basket = http://localhost:5001
+
+### 1. Store a basket -> Basket.API calls Discount.Grpc (GetDiscount) for each item
+POST {{basket}}/basket
+Content-Type: application/json
+
+{
+  "userName": "swn",
+  "items": [
+    { "productId": "5334c996-8457-4cf0-815c-ed2b77c4ff61", "productName": "IPhone X",    "price": 950, "quantity": 1, "color": "Black" },
+    { "productId": "c67d6323-e8b1-4bdf-9a75-b0d0d2e7e914", "productName": "Samsung 10",  "price": 840, "quantity": 2, "color": "Red" },
+    { "productId": "4f136e9f-ff8c-4c1f-9a33-d12f689bdab8", "productName": "Huawei Plus", "price": 650, "quantity": 1, "color": "Blue" }
+  ]
+}
+
+### 2. Read the basket back: IPhone X 800, Samsung 10 740, Huawei Plus 650 (no coupon)
+GET {{basket}}/basket/swn
+
+### 3. Create a coupon for Huawei Plus through gRPC (CreateDiscount)
+POST {{basket}}/discount
+Content-Type: application/json
+
+{ "productName": "Huawei Plus", "description": "Huawei Discount", "amount": 50 }
+
+### 4. Store the basket again: Huawei Plus now gets 600
+POST {{basket}}/basket
+Content-Type: application/json
+
+{
+  "userName": "swn",
+  "items": [
+    { "productId": "4f136e9f-ff8c-4c1f-9a33-d12f689bdab8", "productName": "Huawei Plus", "price": 650, "quantity": 1, "color": "Blue" }
+  ]
+}
+
+### 5. Delete the basket
+DELETE {{basket}}/basket/swn
