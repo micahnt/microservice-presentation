@@ -1,60 +1,9 @@
-# Kịch bản thuyết trình: Microservices với .NET 8 (60 phút)
-
-Đi kèm với `microservices-slides.md`. Mỗi mục bên dưới tương ứng với một slide. Con số trong ngoặc vuông là **mốc đồng hồ mục tiêu khi bạn rời slide đó**, để bạn kiểm tra tốc độ của mình trong lúc nói.
-
-Giả định: nói với tốc độ vừa phải, có ngắt nghỉ ngắn ở các slide code và diagram. Phần lời nói tương đương bản tiếng Anh (khoảng 44 phút); phần demo và các lúc ngắt nghỉ lấp đầy thời gian còn lại. Bản tiếng Việt chưa được bấm giờ thực tế, nên hãy đọc thử một lượt và điều chỉnh các mốc nếu cần. Các dòng *in nghiêng* là chỉ dẫn sân khấu, không đọc thành lời.
-
-Quy ước: thuật ngữ kỹ thuật, tên pattern, tên class/method và tên slide giữ nguyên tiếng Anh để khớp với slide và code.
-
----
-
-## Timing plan
-
-| Phần | Slides | Thời lượng | Đồng hồ khi kết thúc |
-|---|---|---|---|
-| Opening | 1–2 | 2:00 | 2:00 |
-| Part 1: Introduction to Microservices & DDD | 3–16 | 16:00 | 18:00 |
-| Part 2: Building a microservice (ngắn) | 17–20 | 5:00 | 23:00 |
-| Part 3: Synchronous communication (REST & gRPC) | 21–27 | 10:00 | 33:00 |
-| Part 4: Asynchronous communication & message brokers | 28–34 | 10:00 | 43:00 |
-| Part 5: API Gateway & BFF | 35–40 | 7:00 | 50:00 |
-| Demo | 41–42 | 6:00 | 56:00 |
-| Summary và Q&A | 43–45 | 4:00 | 60:00 |
-
-**Nếu bạn đang bị trễ giờ**, có thể rút gọn các slide sau xuống còn một câu mà không mất mạch câu chuyện:
-- Slide 8 (benefits and challenges): "Lợi ích là tốc độ và khả năng scale độc lập; cái giá phải trả là độ phức tạp, các network call, và việc giữ consistency khó hơn."
-- Slide 9 (when to use): "Chỉ dùng khi có lý do thực sự, không bao giờ dùng khi thiếu DevOps, và không bao giờ cho các service dùng chung database."
-- Slide 20 (containerize): "Mỗi service được đóng gói thành một Docker image, và docker-compose chạy tất cả cùng nhau."
-- Slide 33 (messaging setup): "Một extension method dùng chung cấu hình MassTransit cho mọi service."
-- Slide 40 (choosing a method): slide này nhắc lại Part 3–5, có thể bỏ qua.
-
-**Nếu đến lúc demo mà bạn trễ hơn 2 phút**, bỏ lệnh đầu tiên (store basket) và bước đọc lại basket, chỉ chạy checkout và danh sách order.
-
----
-
-## Trước buổi nói (15 phút trước giờ bắt đầu)
-
-*Làm xong trước khi mọi người đến. Tuyệt đối không khởi động Docker trực tiếp trên sân khấu: chỉ riêng việc pull image SQL Server và RabbitMQ đã có thể mất vài phút.*
-
-1. Khởi động các container từ thư mục `section20`:
-   `docker-compose -f docker-compose.yml -f docker-compose.override.yml up -d --build`
-2. Chạy `docker ps` và xác nhận cả 11 container đang chạy.
-3. Làm nóng (warm up) các service để lần gọi demo đầu tiên không bị chậm: gọi `http://localhost:6004/catalog-service/products` một lần.
-4. Dọn dữ liệu của lần chạy thử trước: `curl -X DELETE http://localhost:6004/basket-service/basket/swn`
-5. Mở sẵn các cửa sổ/tab sau, mỗi thứ một tab hoặc một cửa sổ riêng:
-   - Một terminal với ba lệnh demo đã sẵn sàng (hoặc Postman với `EShopMicroservices.postman_collection.json` đã import)
-   - Một terminal thứ hai trong `section20`, sẵn sàng chạy `docker-compose logs -f discount.grpc ordering.api`
-   - RabbitMQ UI tại http://localhost:15672 (đăng nhập guest / guest), đang ở tab **Exchanges**
-6. **Phương án dự phòng:** chụp screenshot từng bước demo khi mọi thứ đang chạy tốt. Nếu Docker lỗi trên sân khấu, chiếu screenshot và tiếp tục nói.
-
----
-
 ## Slide 1: Title  `[1:00]`
 
-hnay e xin thuyết trình về microservice. Mình sẽ đi qua bốn phần. Một: microservices là gì, và Domain-Driven Design giúp mình quyết định nên tách hệ thống ở đâu. Hai: các service giao tiếp với nhau theo kiểu synchronous như thế nào, với REST và gRPC. Ba: giao tiếp asynchronous, với event và message broker. Và bốn: API gateway đứng phía trước tất cả.
+hnay e sẽ thuyết trình về microservice. Mình sẽ đi qua bốn phần. Một: microservices là gì, và Domain-Driven Design giúp mình quyết định nên tách hệ thống ở đâu. Hai: các service giao tiếp với nhau theo kiểu synchronous như thế nào, với REST và gRPC. Ba: giao tiếp asynchronous, với event và message broker. Và bốn: API gateway đứng phía trước tất cả.
 
 ## Slide 2: Agenda  `[2:15]`
-
+// coi lại
 Đây là kế hoạch của buổi hôm nay.
 
 Mình bắt đầu với về microservices và Domain-Driven Design: monolith so với microservices, các design principle, và các ý tưởng của DDD như bounded context, entity và value object.
@@ -63,7 +12,7 @@ Sau đó là về việc cần gì để xây một microservice.
 
 Tiếp theo là synchronous communication, asynchronous communication, cho API gateway và pattern Backends for Frontends.
 
-Rồi một live demo ngắn, trong đó một request checkout duy nhất sẽ dùng đến mọi thứ mình đã nói. Và mình sẽ kết thúc bằng phần tóm tắt và câu hỏi của mọi người. Nếu có chỗ nào chưa rõ, mọi người cứ hỏi ngay nhé.
+Rồi một live demo ngắn về lời gọi gRPC giữa Basket và Discount, chạy ngay trên laptop của mình, không cần Docker. Và mình sẽ kết thúc bằng phần tóm tắt và câu hỏi của mọi người. Nếu có chỗ nào chưa rõ, mọi người cứ hỏi ngay nhé.
 
 ---
 
@@ -73,37 +22,64 @@ Mình bắt đầu từ bức tranh tổng thể: microservices là gì, và mì
 
 ## Slide 4: Architecture design journey  `[3:30]`
 
-Microservices chỉ là một bước trong hành trình gồm bốn kiểu kiến trúc.
+Microservices là một bước trong journey gồm bốn kiểu kiến trúc.
 
-Ngoài cùng bên trái là **monolith** cổ điển: một application với một database. Tiếp theo là **modular monolith**. Nó vẫn là một deployment, nhưng được chia thành vài phần lớn, có thể hiểu là các **macroservices**. Sau đó là **microservices**: nhiều service nhỏ, và mỗi service sở hữu một database riêng. Và ngoài cùng bên phải là **serverless**, nơi các đơn vị trở thành từng function riêng lẻ, đôi khi được gọi là **nanoservices**.
+Ngoài cùng bên trái là **monolith** : một application với một database. Tiếp theo là **modular monolith**. Nó vẫn là một deployment unit, nhưng được chia thành vài phần lớn, có thể hiểu là các **macroservices**. Sau đó là **microservices**: nhiều service nhỏ, và mỗi service sở hữu một database riêng. Và ngoài cùng bên phải là **serverless**, nơi các đơn vị trở thành từng function riêng lẻ, đôi khi được gọi là **nanoservices**.
 
-Càng đi sang phải, các mảnh càng nhỏ và số lượng database càng tăng. Đây là một phổ (spectrum), không phải một cái thang mà bên phải luôn tốt hơn.
+Càng đi sang phải, (code & nghiệp vụ) càng đc phân nhỏ và số lượng database càng tăng.
 
-Vậy nên chọn cái nào? **Tùy vào project của bạn.** Nhiều hệ thống dùng **mixed architecture** và lên kế hoạch cho các **transition** khi hệ thống lớn dần. Cả Martin Fowler và Sam Newman đều khuyên nên bắt đầu với **monolith first**, rồi tách từng service ra khi có nhu cầu thực sự.
+Vậy nên chọn cái nào? **Tùy vào project.** Nhiều hệ thống dùng **mixed architecture** và lên kế hoạch cho các chuyển đổi khi hệ thống lớn dần. Cả Martin Fowler và Sam Newman đều khuyên nên bắt đầu với **monolith first**, rồi tách từng service ra khi có nhu cầu thực sự.
 
 ## Slide 5: What are microservices?  `[4:45]`
 
 Vậy chính xác thì microservice là gì? Sáu ý.
 
-Chúng **nhỏ, độc lập, và loosely coupled**. Mỗi service có **codebase riêng**, do một **team nhỏ** sở hữu. Chúng chỉ giao tiếp với nhau qua các **API được định nghĩa rõ ràng**: HTTP, gRPC, hoặc message. Mỗi service được **deploy độc lập**: mình có thể release một Basket service mới mà không đụng đến Ordering. Chúng **technology agnostic**, tức là không phụ thuộc vào một công nghệ cụ thể. Và mỗi service có **database riêng**, không chia sẻ với ai.
+- Chúng **nhỏ, độc lập, và loosely coupled**. 
+- Mỗi service có **codebase riêng**, do một **team nhỏ** sở hữu. 
+- Chúng chỉ giao tiếp với nhau qua các **API được định nghĩa rõ ràng**: HTTP, gRPC, hoặc message. - - Mỗi service được **deploy độc lập** (mình có thể release một Basket service mới mà không đụng đến Ordering.)
+- Chúng **technology agnostic**, tức là không phụ thuộc vào một công nghệ cụ thể. 
+- Và mỗi service có **database riêng**, không chia sẻ với ai.
 
-Câu trích dẫn là từ bài viết gốc của Martin Fowler: "một bộ các service nhỏ, mỗi service chạy trong process riêng của nó và giao tiếp với nhau bằng các lightweight mechanism." Nếu hôm nay mọi người chỉ nhớ một câu, hãy nhớ câu này.
+(nchung là: "một bộ các service nhỏ, mỗi service chạy trong process riêng của nó và giao tiếp với nhau bằng các lightweight mechanism." )
 
-## Slide 6: Monolith vs. microservices  `[6:00]`
+## Slide 6: Monolith vs. microservices  `[7:00]`
 
 Giờ mình so sánh trực tiếp hai bên.
 
-Về **scalability**, monolith scale như một khối; microservices scale từng service riêng. Vào ngày Black Friday, mình có thể chỉ scale Basket và Ordering. Về **data**, một database dùng chung so với mỗi service một database. Về **failure**, một bug có thể làm sập cả monolith, trong khi microservices cô lập lỗi (fault isolation).
+Về **structure**, monolith là một khối duy nhất, một app và một database. Microservices là nhiều service khác nhau, mỗi service có database riêng, và có thể dùng công nghệ riêng.
 
-Hình vẽ ở dưới minh họa **deployment**. Với monolith, ba team cùng commit vào **một code base duy nhất** với **một pipeline**, nên mỗi lần release đều phải phối hợp. Với microservices, mỗi team có **code riêng, pipeline riêng, và service riêng**, và release khi nào sẵn sàng thì release.
+Về **scalability**, monolith scale như một khối, nên muốn chịu thêm tải thì phải nhân bản cả app. Microservices scale từng service riêng. Vào ngày Black Friday, mình có thể chỉ scale Basket và Ordering.
 
-Không bên nào là "tốt hơn". Với nhiều hệ thống, monolith là một lựa chọn hoàn toàn hợp lý.
+Về **deployment**, monolith deploy đơn giản nhưng phải deploy cả khối (sửa một dòng code cũng phải deploy lại toàn bộ.) Microservices deploy độc lập, không downtime, qua CI/CD pipeline riêng của từng service. Hình vẽ ở dưới minh họa điều này. Với monolith, ba team cùng commit vào **một code base duy nhất** với **một pipeline**, nên mỗi lần release lên prod đều phải phối hợp. Với microservices, mỗi team có **code riêng, pipeline riêng, và service riêng**, và release khi nào sẵn sàng thì release.
 
-Và nhiều hệ thống microservices thành công ban đầu cũng là một monolith. Monolith giúp team hiểu ranh giới thật sự nằm ở đâu, và *sau đó* họ mới tách.
+Về **data**, một database dùng chung so với mỗi service một database.
 
-## Slide 7: Design principles  `[7:30]`
+Về **failure**, một bug, ví dụ memory leak, có thể làm sập cả monolith, trong khi microservices cô lập lỗi trong một service (fault isolation).
 
-Nếu đã chọn microservices, sáu nguyên tắc này giúp mình tránh được rắc rối.
+Và về **team fit**, monolith phù hợp với team nhỏ hoặc team mới. Microservices cần một team có kinh nghiệm, quen với container, DevOps và monitoring. Thiếu những kỹ năng đó thì độ phức tạp tăng thêm sẽ gây hại nhiều hơn lợi.
+
+Không bên nào là "tốt hơn". Với nhiều hệ thống, monolith là một lựa chọn hoàn toàn hợp lý. (vd Dự án mới khởi nghiệp (MVP), Team size tầm 15-20 người,...)
+
+
+## Slide 7: Benefits and challenges  `[8:15]`
+
+Đây là pros cons.
+
+Các **benefit**: agility, vì các team nhỏ có thể ship mà không cần phối hợp một đợt release khổng lồ; **independent scaling**; codebase nhỏ; deploy độc lập; chọn đúng công nghệ cho đúng việc; và **fault isolation**: (nếu Discount bị crash, khách hàng vẫn xem được sản phẩm.)
+
+Các **challenge** thì có thật. Toàn hệ thống **phức tạp** hơn. Mỗi call bây giờ là một **network call** có thể chậm hoặc thất bại. End-to-end testing khó hơn. **Data consistency** khó hơn (vì không còn một database transaction duy nhất bao trùm nhiều service). Và debug xuyên qua nhiều service rất khó.
+
+Nên cơ bản là microservices không xóa bỏ độ phức tạp. Nó **chuyển** độ khó từ bên trong code sang giữa các service.
+
+## Slide 8: When to use, and when not to  `[9:15]`
+
+Hãy dùng microservice khi mình cần **zero-downtime independent deployment**, **independent scaling**, các data store khác nhau, có nhiều team tự chủ, hoặc là khi mình có một lý do (hệ thống Monolith hiện tại không thể chịu tải được nữa, team size quá lớn, mn giẫm chân nhau).
+
+Hãy tránh khi mình sẽ xây một **distributed monolith**: tức là microservice nhưng các service bị tight coupling đến mức vẫn phải deploy cùng nhau. Cũng nên tránh khi chưa có Devops, khi chỉ có **team nhỏ**, khi là **startup mới** mà domain còn thay đổi liên tục, và đừng bao giờ để các service **dùng chung database**.
+
+## Slide 9: Design principles  `[10:45]`
+
+Nếu đã chọn microservices, sáu nguyên tắc này giúp mình tránh bị distributed monolith.
 
 **Một: single responsibility.** Mỗi service tương ứng với một **business capability**, như Catalog hay Ordering, chứ không phải một tầng kỹ thuật như "database service".
 
@@ -117,29 +93,7 @@ Nếu đã chọn microservices, sáu nguyên tắc này giúp mình tránh đư
 
 **Sáu: automate và observe.** CI/CD, container, health check và centralized logging không phải là phần thêm tùy chọn; thiếu chúng, một đống service sẽ không thể quản lý nổi.
 
-## Slide 8: Benefits and challenges  `[8:45]`
-
-Đây là cả hai mặt, nói thẳng thắn.
-
-Các **benefit**: agility, vì các team nhỏ có thể ship mà không cần phối hợp một đợt release khổng lồ; **independent scaling**; codebase nhỏ; deploy độc lập; chọn đúng công cụ cho đúng việc; và **fault isolation**: nếu Discount bị crash, khách hàng vẫn xem được sản phẩm.
-
-Các **challenge** thì có thật. Toàn hệ thống **phức tạp** hơn. Mỗi lời gọi bây giờ là một **network call** có thể chậm hoặc thất bại. End-to-end testing khó hơn. **Data consistency** khó hơn, vì không còn một database transaction duy nhất bao trùm nhiều service. Và debug xuyên qua nhiều service rất khó.
-
-Nên microservices không xóa bỏ độ phức tạp. Chúng **chuyển** nó, từ bên trong code sang giữa các service.
-
-## Slide 9: When to use, and when not to  `[9:45]`
-
-Hãy dùng chúng khi mình cần **zero-downtime independent deployment**, **independent scaling**, các data store khác nhau, hoặc có nhiều team tự chủ. Và quan trọng nhất, khi mình có một *lý do thật sự tốt*.
-
-Hãy tránh khi mình sắp xây một **distributed monolith**: các service gắn chặt với nhau đến mức vẫn phải deploy cùng nhau. Như vậy mình phải chịu mọi sự phức tạp mà không được lợi ích nào. Cũng nên tránh khi chưa có **DevOps foundation**, khi chỉ có **team nhỏ**, khi là **startup mới** mà domain còn thay đổi liên tục, và đừng bao giờ để các service **dùng chung database**.
-
-## Slide 10: Database-per-service  `[10:45]`
-
-Điểm cuối cùng đó là quy tắc quan trọng nhất: **database per service**. Dữ liệu của một service chỉ được truy cập **thông qua API của nó**. Ordering không bao giờ được chạy SQL query vào database của Catalog. Chính điều đó cho phép Catalog đổi schema vào ngày mai mà không làm hỏng ai.
-
-Một tác dụng phụ rất hay là **polyglot persistence**. Trong EShop, **Catalog** dùng PostgreSQL như một document database thông qua Marten. **Basket** dùng PostgreSQL cộng với **Redis** làm cache. **Discount** dùng SQLite. Và **Ordering** dùng **SQL Server**, vì order có quan hệ (relational) rất phong phú. Bốn service, bốn công nghệ lưu trữ, và như vậy hoàn toàn ổn.
-
-## Slide 11: Introduction to DDD  `[12:15]`
+## Slide 10: Introduction to DDD  `[12:15]`
 
 Giờ, câu hỏi khó nhất trong microservices là: **mình vạch ranh giới giữa các service ở đâu?** Đó là chỗ Domain-Driven Design xuất hiện.
 
@@ -149,7 +103,7 @@ DDD có hai nửa. **Strategic DDD** là bức tranh lớn: hiểu business doma
 
 Mình sẽ đi qua cả hai: strategic trước, tactical sau.
 
-## Slide 12: DDD core concepts  `[13:30]`
+## Slide 11: DDD core concepts  `[13:30]`
 
 Năm khái niệm mà mọi cuộc trò chuyện về DDD đều nhắc đến.
 
@@ -161,7 +115,7 @@ Năm khái niệm mà mọi cuộc trò chuyện về DDD đều nhắc đến.
 
 Và **context map** cho thấy các context liên hệ với nhau thế nào. Với mình: Basket hỏi Discount qua gRPC, và Basket thông báo cho Ordering bằng một event.
 
-## Slide 13: Bounded contexts → microservices  `[14:45]`
+## Slide 12: Bounded contexts → microservices  `[14:45]`
 
 Trong thực tế, làm sao tìm ra các bounded context? Khóa học dùng một phương pháp đơn giản. Bắt đầu từ các **user story**. Tìm các **danh từ**, chúng trở thành entity, và các **động từ**, chúng trở thành use case. Rồi nhóm chúng lại.
 
@@ -171,7 +125,7 @@ Giờ hãy nhìn vào bullet đầu tiên, vì đó là trái tim của ý tư�
 
 Một bounded context thường là một microservice, nhưng bạn có thể tách nhỏ hơn nữa nếu một phần cần scale khác đi.
 
-## Slide 14: Entities, value objects, aggregates  `[16:00]`
+## Slide 13: Entities, value objects, aggregates  `[16:00]`
 
 Giờ đến tactical DDD: cách mô hình hóa bên trong một service. Ba building block.
 
@@ -183,7 +137,7 @@ Trong Ordering service, `Order`, `OrderItem`, `Customer` và `Product` là entit
 
 **Aggregate** là một cụm các entity và value object được xem là một đơn vị consistency. Entity chính của nó là **aggregate root**, và đó là cổng vào duy nhất. Ở đây, `Order` là root. Không ai thêm order item trực tiếp; mình gọi `Order.Add`, và order tự bảo đảm các quy tắc của nó được giữ, ví dụ quantity và price phải dương.
 
-## Slide 15: Entities and value objects in code  `[17:00]`
+## Slide 14: Entities and value objects in code  `[17:00]`
 
 Đây là hình dạng của nó trong code Ordering.
 
@@ -191,7 +145,7 @@ Bên trái là base class `Entity`: một ID cộng với các audit field. `Ord
 
 Bên phải là các value object. `Address` là một C# **record**, nên hai address có cùng giá trị thì tự động bằng nhau. Nó được tạo qua một factory method tên là `Of`, method này validate input. Và `OrderId` là một **strongly typed ID**: thay vì truyền các GUID thô đi khắp nơi, nơi rất dễ nhầm order ID với customer ID, mỗi loại ID có một type riêng, và một GUID rỗng sẽ bị từ chối.
 
-## Slide 16: The big picture  `[18:00]`
+## Slide 15: The big picture  `[18:00]`
 
 Và đây là cách toàn bộ hệ thống khớp với nhau. Đọc từ trái sang phải.
 
@@ -205,11 +159,11 @@ Và để ý hai kết nối đặc biệt. **Basket gọi Discount qua gRPC**: 
 
 ---
 
-## Slide 17: Part 2 divider  `[18:15]`
+## Slide 16: Part 2 divider  `[18:15]`
 
 Trước khi kết nối các service với nhau, mình xem nhanh một service trông như thế nào.
 
-## Slide 18: From analysis to a running service  `[19:45]`
+## Slide 17: From analysis to a running service  `[19:45]`
 
 Mỗi service trong project này đều đi theo cùng năm bước. **Domain analysis**: model, use case, endpoint và data store. **Technical analysis**: architecture style, pattern và library. Sau đó **develop** với ASP.NET Core Minimal APIs, **containerize** với Dockerfile, và **orchestrate** với docker-compose.
 
@@ -217,7 +171,7 @@ Và mọi `Program.cs` đều có cùng một dáng năm bước: tạo builder,
 
 Bên phải là microservice nhỏ nhất có thể, TodoApi từ section 4. Nó đăng ký một in-memory database, map một endpoint GET và một endpoint POST, rồi chạy. Chỉ khoảng mười lăm dòng, và nó đã thỏa định nghĩa: process riêng, một responsibility, dữ liệu riêng, và một HTTP API.
 
-## Slide 19: Catalog.API  `[21:30]`
+## Slide 18: Catalog.API  `[21:30]`
 
 Một service thật cần cấu trúc nhiều hơn. Catalog dùng **Vertical Slice Architecture**: mỗi feature một folder, như CreateProduct hay GetProductById, trong đó chứa endpoint và handler của nó. Muốn đổi một feature, mình chỉ mở một folder.
 
@@ -225,23 +179,23 @@ Bên phải là luồng của một request: **HTTP, endpoint, MediatR, handler,
 
 Có hai pattern đang hoạt động ở đây. **CQRS**, Command Query Responsibility Segregation, nghĩa là đọc và ghi được xử lý riêng: `GetProductByIdQuery` là một query, nó chỉ đọc; `CreateProductCommand` là một command, nó thay đổi dữ liệu. Và **MediatR** là một in-process mediator: endpoint gửi một message, và MediatR tìm handler duy nhất cho nó. Một tác dụng phụ rất hay là MediatR có thể bọc mọi request trong các **pipeline behavior**. EShop dùng hai cái: một cái validate mọi command bằng FluentValidation, và một cái log mọi request. Nhờ vậy không handler nào phải lặp lại đoạn code đó.
 
-## Slide 20: Containerize and orchestrate  `[23:00]`
+## Slide 19: Containerize and orchestrate  `[23:00]`
 
 Cuối cùng, mình đóng gói nó. Dockerfile có nhiều stage: build bằng image .NET SDK đầy đủ, rồi chỉ copy phần output đã publish sang image runtime nhỏ gọn. Image cuối cùng nhỏ hơn và không chứa source code.
 
 Bên phải, docker-compose chạy service cạnh database của nó, với environment variable, một startup dependency, và một port mapping. Bên trong Docker, các service tìm nhau **bằng tên**: gateway gọi `http://catalog.api:8080`. EShop chạy mười một container theo cách này.
 
-Port mapping `6000:8080` nghĩa là: port 8080 bên trong container có thể truy cập qua port 6000 trên laptop của mình. Mọi service đều listen ở 8080 bên trong container, và có một port riêng trong dải 6000 ở bên ngoài. Mười một container gồm năm backing service, hai database PostgreSQL, Redis, SQL Server và RabbitMQ, cộng với sáu application. Một lệnh duy nhất khởi động tất cả, và đó cũng là cách demo sẽ chạy.
+Port mapping `6000:8080` nghĩa là: port 8080 bên trong container có thể truy cập qua port 6000 trên laptop của mình. Mọi service đều listen ở 8080 bên trong container, và có một port riêng trong dải 6000 ở bên ngoài. Mười một container gồm năm backing service, hai database PostgreSQL, Redis, SQL Server và RabbitMQ, cộng với sáu application. Một lệnh duy nhất khởi động tất cả.
 
 Giờ mình đã có các service. Hãy kết nối chúng lại.
 
 ---
 
-## Slide 21: Part 3 divider  `[23:15]`
+## Slide 20: Part 3 divider  `[23:15]`
 
 Phần ba: synchronous communication.
 
-## Slide 22: Service-to-service communication  `[24:45]`
+## Slide 21: Service-to-service communication  `[24:45]`
 
 Các service phải hợp tác với nhau theo hai cách: **xin dữ liệu**, như "discount của sản phẩm này là bao nhiêu?", hoặc **kích hoạt công việc**, như "tạo order này".
 
@@ -253,13 +207,13 @@ EShop dùng cả hai. Basket hỏi Discount **synchronous bằng gRPC**, vì nó
 
 Quy tắc ngón tay cái: **REST cho public API, gRPC cho các lời gọi nội bộ, messaging cho các workflow xuyên nhiều service.**
 
-## Slide 23: REST over HTTP  `[25:45]`
+## Slide 22: REST over HTTP  `[25:45]`
 
 REST là thứ quen thuộc nhất: các resource URL như `GET /products` và `POST /basket`, với JSON mà client nào cũng hiểu.
 
 Gọi REST bằng `HttpClient` thuần nghĩa là code lặp đi lặp lại: dựng URL, serialize, gửi, deserialize. Shopping.Web tránh điều đó bằng **Refit**. Mình viết một **interface**, đặt route lên từng method dưới dạng attribute, và Refit tự sinh ra phần implementation. Đăng ký bằng `AddRefitClient`, trỏ nó vào gateway, và trong một Razor page mình chỉ cần gọi `GetProduct(id)` như một method C# bình thường.
 
-## Slide 24: Introduction to Protobuf and gRPC  `[27:30]`
+## Slide 23: Introduction to Protobuf and gRPC  `[27:30]`
 
 Giờ đến gRPC, một remote procedure call framework của Google. Nó chạy trên **HTTP/2**, và client gọi một remote method **như thể đó là một object cục bộ**.
 
@@ -269,7 +223,7 @@ Hai điều mà mọi người hay bỏ sót. Thứ nhất, các con số như `
 
 Và trong .NET, mình không phải viết code networking. Quá trình build **tự sinh** một server base class và một client class từ file `.proto`.
 
-## Slide 25: gRPC server  `[28:45]`
+## Slide 24: gRPC server  `[28:45]`
 
 Đây là phía server. Trong `Program.cs`: `AddGrpc`, database, và `MapGrpcService`.
 
@@ -277,7 +231,7 @@ Và trong .NET, mình không phải viết code networking. Quá trình build **
 
 Cách xử lý lỗi cũng khác. Thay vì trả về HTTP 404, service throw một `RpcException` kèm một gRPC status code. Ví dụ, `DeleteDiscount` throw `StatusCode.NotFound` nếu coupon không tồn tại, còn `Create` và `Update` throw `InvalidArgument` khi request sai. Client nhận chúng dưới dạng các typed exception. Ba method còn lại, Create, Update và Delete, theo cùng một khuôn: map Protobuf message sang database model, lưu, rồi map ngược lại.
 
-## Slide 26: gRPC client  `[30:30]`
+## Slide 25: gRPC client  `[30:30]`
 
 Và phía client, trong Basket. Ba bước.
 
@@ -289,7 +243,7 @@ Thực ra, project Basket thậm chí không copy file. Nó link thẳng đến 
 
 **Ba**: inject client và gọi. Với mỗi cart item, gọi `GetDiscountAsync` với product name, rồi trừ đi amount của coupon. Nó đọc như một lời gọi method cục bộ, nhưng thật ra là một binary HTTP/2 request đến một container khác.
 
-## Slide 27: When to use REST, when to use gRPC  `[33:00]`
+## Slide 26: When to use REST, when to use gRPC  `[33:00]`
 
 Vậy khi nào chọn cái nào? Mình đi từng hàng một.
 
@@ -305,11 +259,11 @@ Và đây không phải là lựa chọn một trong hai cho cả hệ thống. 
 
 ---
 
-## Slide 28: Part 4 divider  `[33:15]`
+## Slide 27: Part 4 divider  `[33:15]`
 
 Phần bốn: asynchronous communication, và vì sao nó quan trọng.
 
-## Slide 29: Basic event-driven architecture  `[35:00]`
+## Slide 28: Basic event-driven architecture  `[35:00]`
 
 Bắt đầu với vấn đề ở bên trái. Hãy tưởng tượng tạo một order mà chỉ dùng các lời gọi synchronous. Gateway gọi ShoppingCart. ShoppingCart gọi Product và Pricing, rồi gọi Order. Order gọi Billing và Shipping. Sáu lời gọi chỉ cho một cú click. Mọi service đều phải đang chạy, độ trễ cộng dồn lại, và nếu Shipping chậm thì tất cả đều chậm.
 
@@ -321,7 +275,7 @@ Một ví dụ đời thường: command giống như gọi điện cho một ng
 
 Trong EShop, checkout là event. Basket không gọi Ordering rồi bảo "hãy tạo một order". Nó thông báo "basket này đã được checkout", và Ordering tự quyết định điều đó có nghĩa gì với nó.
 
-## Slide 30: Domain vs. integration events  `[36:30]`
+## Slide 29: Domain vs. integration events  `[36:30]`
 
 Trong các hệ thống DDD, có hai loại event.
 
@@ -331,7 +285,7 @@ Một **integration event** đi **giữa** các service, thông qua một messag
 
 Diagram cho thấy chúng nối chuỗi với nhau thế nào. Integration event đến Ordering, handler tạo một order, order raise một domain event, và handler của domain event đó có thể publish một integration event mới, `OrderCreatedIntegrationEvent`, cho các service khác như shipping. Trong project này, bước cuối đó nằm sau một feature flag và đang tắt.
 
-## Slide 31: The role of a message broker  `[38:15]`
+## Slide 30: The role of a message broker  `[38:15]`
 
 Vậy broker ở giữa thực sự làm gì? Nó **nhận** message, **lưu** chúng cho đến khi consumer sẵn sàng, kể cả khi consumer đang down, **route** chúng đến đúng các queue, và **giao và retry**. Nó tách rời (decouple) các service về **thời gian**, vì chúng không cần chạy cùng lúc, và về **vị trí**, vì producer không cần biết địa chỉ của consumer.
 
@@ -339,9 +293,9 @@ Vậy broker ở giữa thực sự làm gì? Nó **nhận** message, **lưu** c
 
 Bên trên RabbitMQ, EShop dùng **MassTransit**, một thư viện .NET tạo exchange và queue, đồng thời xử lý serialization và retry. Nên code của mình nghĩ theo event, không phải theo exchange.
 
-RabbitMQ cũng có sẵn một management web UI, ở port 15672 trong setup của mình. Nó hiển thị mọi exchange, queue và message rate, và mình sẽ dùng nó trong demo để cho thấy event của mình đi qua.
+RabbitMQ cũng có sẵn một management web UI, ở port 15672 trong setup của mình. Nó hiển thị mọi exchange, queue và message rate, và đó là nơi đầu tiên nên xem khi một message có vẻ bị thất lạc.
 
-## Slide 32: Basic pub/sub pattern  `[39:45]`
+## Slide 31: Basic pub/sub pattern  `[39:45]`
 
 Cách dùng broker phổ biến nhất là **publish/subscribe**.
 
@@ -351,7 +305,7 @@ So sánh với một queue thông thường: queue giao mỗi message cho **mộ
 
 Bên phải là các cái giá phải trả. Broker thường giao **at least once**, nên một message có thể đến hai lần, và consumer phải **idempotent**: xử lý hai lần thì vẫn phải an toàn. Thứ tự không được bảo đảm. Broker trở nên quan trọng sống còn, nên phải có high availability. Và có **eventual consistency**: order xuất hiện sau checkout một lúc, không phải ngay lập tức.
 
-## Slide 33: Messaging setup  `[41:00]`
+## Slide 32: Messaging setup  `[41:00]`
 
 Đây là cách EShop thiết lập việc này. Bên trái là **contract**: một base record `IntegrationEvent`, và `BasketCheckoutEvent` với user name, total price, address và payment. Cả Basket và Ordering đều reference cùng class này.
 
@@ -359,7 +313,7 @@ Bên phải là một extension method dùng chung, `AddMessageBroker`. Nó cấ
 
 Hai chi tiết. `ConfigureEndpoints` bảo MassTransit tạo một queue cho mỗi consumer mà nó tìm thấy, và bind nó vào đúng exchange, nên mình không bao giờ phải khai báo queue bằng tay. Và địa chỉ broker lấy từ configuration: chạy local là `amqp://localhost:5672`, còn bên trong Docker là `amqp://ecommerce-mq:5672`, được set bằng environment variable trong docker-compose. Cùng một code, khác môi trường.
 
-## Slide 34: Publish and consume  `[43:00]`
+## Slide 33: Publish and consume  `[43:00]`
 
 Và cả hai đầu của luồng checkout.
 
@@ -373,11 +327,11 @@ Có một câu hỏi đáng đặt ra về handler này: nếu `Publish` thành 
 
 ---
 
-## Slide 35: Part 5 divider  `[43:15]`
+## Slide 34: Part 5 divider  `[43:15]`
 
 Chủ đề cuối cùng: API gateway, và pattern Backends for Frontends.
 
-## Slide 36: The role of an API Gateway  `[44:45]`
+## Slide 35: The role of an API Gateway  `[44:45]`
 
 Không có gateway, mỗi client phải biết địa chỉ của mọi service, và mỗi service phải tự xử lý authentication, SSL và rate limiting.
 
@@ -387,7 +341,7 @@ Bên phải là pipeline mà một request đi qua: validation, IP allowlisting,
 
 Rủi ro: một gateway cho tất cả mọi thứ có thể trở thành **bottleneck** và **single point of failure**. Điều đó dẫn đến pattern tiếp theo.
 
-## Slide 37: Backends for Frontends  `[46:00]`
+## Slide 36: Backends for Frontends  `[46:00]`
 
 **Backends for Frontends**, hay BFF, nghĩa là **một gateway cho mỗi loại client**, thay vì một gateway cho tất cả mọi người.
 
@@ -395,7 +349,7 @@ Tại sao? Vì các client khác nhau cần những thứ khác nhau. Màn hình
 
 EShop chỉ có một client, Shopping.Web, nên một gateway là đủ. Mình sẽ thêm BFF khi, ví dụ, có một mobile app xuất hiện.
 
-## Slide 38: Introduction to YARP  `[47:30]`
+## Slide 37: Introduction to YARP  `[47:30]`
 
 EShop implement gateway của nó bằng **YARP**, viết tắt của "Yet Another Reverse Proxy". Đây là một reverse-proxy library của Microsoft, xây trên ASP.NET Core. Nó hỗ trợ HTTP/2, gRPC và WebSockets, load balancing và health check, và cắm vào các middleware ASP.NET Core thông thường, như rate limiter.
 
@@ -403,7 +357,7 @@ EShop implement gateway của nó bằng **YARP**, viết tắt của "Yet Anoth
 
 Bên phải là config. Một **route** khớp với một path, như `/catalog-service/` cộng với bất cứ thứ gì phía sau, và trỏ đến một **cluster**. **Transform** bỏ đi phần prefix. Cluster cho biết service nằm ở đâu: `catalog.api:8080`. Nên `/catalog-service/products` trở thành `catalog.api:8080/products`. Và route ordering còn áp dụng thêm rate limiting policy.
 
-## Slide 39: Ocelot, and YARP vs. Ocelot  `[49:00]`
+## Slide 38: Ocelot, and YARP vs. Ocelot  `[49:00]`
 
 Lựa chọn nổi tiếng khác trong .NET là **Ocelot**, một API gateway library open-source được cấu hình bằng file `ocelot.json`. EShop không dùng nó, nên ở cuối slide mình viết cùng route Catalog đó theo kiểu Ocelot, chỉ để so sánh. Đường dẫn **upstream** là cái client gọi; đường dẫn và host **downstream** là nơi Ocelot forward đến. Code khởi động chỉ là `AddOcelot` và `UseOcelot`.
 
@@ -411,7 +365,7 @@ So sánh thế nào? **YARP** đến từ Microsoft và là một **toolkit** re
 
 Cả hai đều implement gateway routing pattern. YARP là cái mà khóa học này dùng.
 
-## Slide 40: Choosing an invocation method  `[50:00]`
+## Slide 39: Choosing an invocation method  `[50:00]`
 
 Giờ mình ráp tất cả lại. **REST** cho các API hướng client. **gRPC** cho các lời gọi nội bộ nhanh với contract chặt chẽ. **Messaging** cho các workflow xuyên service và để decoupling. Và **API gateway** làm cánh cửa trước duy nhất.
 
@@ -423,55 +377,47 @@ Slide thế là đủ. Giờ xem nó chạy.
 
 ---
 
-## Slide 41: Demo setup  `[51:00]`
+## Slide 40: Demo setup  `[51:00]`
 
-*(Giữ phần này ngắn. Mọi thứ đã chạy sẵn.)*
+*(Hai service đã chạy sẵn trong hai terminal đặt cạnh nhau, để thấy log của cả hai. VS Code đang mở `demo.http`.)*
 
-Kế hoạch là: một lần checkout, ba lệnh. Thứ nhất, lưu một basket: REST qua gateway, rồi gRPC đến Discount. Thứ hai, checkout: Basket publish một event lên RabbitMQ, và Ordering consume nó. Thứ ba, liệt kê các order để xem kết quả.
+Với phần demo, mình chỉ lấy phần gRPC của khóa học, section 10 đến 12, và cho nó chạy trên laptop chỉ với .NET SDK. Không Docker, không database server.
 
-Mình đã khởi động cả mười một container trước buổi nói bằng một lệnh docker-compose. Mọi thứ đi qua gateway ở port 6004.
+Có hai project. **Discount.Grpc** là gRPC server, đúng như service mình đã thấy trên slide: contract `.proto`, `DiscountService`, và một file SQLite nhỏ với hai coupon có sẵn: giảm 150 cho iPhone X và giảm 100 cho Samsung 10. **Basket.API** là client. Mình đã rút gọn nó chỉ còn phần cốt lõi: nó giữ basket trong bộ nhớ, và khi mình lưu một basket, nó gọi Discount qua gRPC cho từng item.
 
-Bên phải màn hình của mình là log của Discount và Ordering service, để mình thấy từng service phản ứng.
+Cả hai project dùng chung một file `discount.proto`. Project server sinh ra server base class, project client sinh ra client. Một contract, hai phía được sinh code.
 
-## Slide 42: Demo commands  `[56:00]`
+Và có một điểm khác so với khóa học: ở đây client gọi `localhost:5002` bằng HTTP/2 thường, không có TLS, nên không cần cách xử lý development certificate như ở slide trước.
 
-*[Đảm bảo terminal log (`docker-compose logs -f discount.grpc ordering.api`) hiển thị cạnh terminal chạy lệnh.]*
+## Slide 41: Demo steps  `[56:00]`
 
-Đầu tiên, mình lưu một basket cho user "swn" với một chiếc iPhone X giá 950.
+*[Gửi request 1 trong `demo.http`: lưu basket với ba item.]*
 
-*[Chạy POST đến `/basket-service/basket`.]*
+Mình lưu một basket cho user "swn" với ba chiếc điện thoại: một iPhone X giá 950, hai Samsung 10 giá 840, và một Huawei Plus giá 650. Đây là một REST call bình thường, JSON vào và JSON ra.
 
-Nhìn vào log: "Discount is retrieved for ProductName: IPhone X, Amount: 150." Dòng đó đến từ Discount service, vì **Basket vừa gọi nó qua gRPC**.
+Nhìn vào response: iPhone còn **800**, Samsung còn **740**, Huawei vẫn **650**.
 
-*[Chạy GET để lấy basket.]*
+Giờ xem log. Bên Discount: "Discount is retrieved for ProductName: IPhone X, Amount: 150", rồi Samsung với 100, và với Huawei là "No Discount", amount bằng 0. Bên Basket là các dòng tương ứng: "gRPC GetDiscount returned amount 150", v.v. Ba item, ba lời gọi gRPC, và trong code mỗi lời gọi trông như một method C# bình thường.
 
-Và đọc lại basket, giá là **800**: 950 trừ coupon 150.
+*[Gửi request 2: lấy basket.]*
 
-*Nếu giá vẫn là 950: nhiều khả năng lời gọi gRPC đã thất bại vì HTTPS certificate. Hãy nói "đây chính xác là loại lỗi mạng mà mình thiết kế để đối phó", chiếu screenshot, rồi đi tiếp.*
+Đọc lại thì thấy giá đã giảm được lưu lại. Tổng là 2.930.
 
-Giờ đến checkout.
+*[Gửi request 3: tạo coupon.]*
 
-*[Chạy POST checkout.]*
+Giờ mình thay đổi dữ liệu ở phía bên kia. Request này gửi đến Basket, và Basket gọi một gRPC method *khác*, `CreateDiscount`, để thêm coupon giảm 50 cho Huawei. Response là `CouponModel` mới, với id 3: đó là Protobuf message, được chuyển lại thành JSON để mình đọc.
 
-`isSuccess: true`, và nó trả về **ngay lập tức**. Basket không chờ Ordering; nó publish một event rồi trả về.
+*[Gửi request 4: lưu lại basket Huawei.]*
 
-*[Chuyển sang RabbitMQ UI, tab Exchanges.]*
+Và nếu mình lưu lại basket Huawei: **600**. Basket không thay đổi gì; Discount service thay đổi, và Basket nhận được giá mới ở lần gọi tiếp theo.
 
-Trong RabbitMQ, đây là exchange mà MassTransit đã tạo, được đặt tên theo event type của mình, và message rate cho thấy message của mình đã đi qua.
+*Tùy chọn, nếu còn một phút: dừng Discount.Grpc (Ctrl+C) rồi gửi lại request 1. Request sẽ báo lỗi server, vì lời gọi gRPC là synchronous: Basket không thể hoàn thành khi thiếu Discount. Nói: "Đó là temporal coupling ở Part 3, và đó chính là lý do checkout dùng event chứ không dùng lời gọi trực tiếp." Sau đó khởi động lại Discount.Grpc.*
 
-*[Quay lại phần log.]*
-
-Và trong log của Ordering, hai dòng: "Integration Event handled: BasketCheckoutEvent", đó là event từ Basket, đi qua RabbitMQ. Rồi "Domain Event handled: OrderCreatedEvent", đó là aggregate `Order` raise domain event của chính nó bên trong Ordering. Cả hai loại event từ Part 4, trong một luồng duy nhất.
-
-*[Chạy GET để lấy danh sách orders.]*
-
-Và đây là kết quả. ORD_1 và ORD_2 là seed data, còn cái cuối là order mới của mình, "swn". Hai service, hai database, chỉ nối với nhau bằng một event.
-
-Một chi tiết cần nói thật: các item trong order này là các demo item cố định từ code của khóa học, không phải chiếc iPhone trong basket của mình. Event handler đánh dấu chỗ này là một TODO.
+Đó là gRPC trong thực tế: một contract, code được sinh ra ở cả hai phía, và một lời gọi từ xa nhưng đọc như lời gọi local.
 
 ---
 
-## Slide 43: Summary  `[57:15]`
+## Slide 42: Summary  `[57:15]`
 
 Mình tóm tắt lại.
 
@@ -481,13 +427,13 @@ Mình tóm tắt lại.
 
 Với giao tiếp **synchronous**, dùng **REST** cho các API hướng client và **gRPC với Protobuf** cho các lời gọi nội bộ nhanh. Với giao tiếp **asynchronous**, dùng **event** qua **message broker** với pub/sub, cho các workflow decoupled. Và một **API gateway**, YARP hoặc Ocelot, làm cánh cửa trước duy nhất, cùng **BFF** khi có nhiều loại client.
 
-Và như mọi người đã thấy, một lần checkout đã dùng đến tất cả.
+Và trong demo, mọi người đã thấy phần synchronous chạy thật: Basket gọi Discount qua gRPC, với một contract dùng chung.
 
-## Slide 44: References  `[57:30]`
+## Slide 43: References  `[57:30]`
 
-Khóa học, các slide và toàn bộ code được liệt kê ở đây, từ section 4 đến section 20, là hệ thống hoàn chỉnh. Về DDD, cuốn sách của Eric Evans là bản gốc, và e-book miễn phí của Microsoft về kiến trúc .NET microservices là bước tiếp theo tốt nhất.
+Khóa học, các slide và toàn bộ code được liệt kê ở đây, từ section 4 đến section 20, là hệ thống hoàn chỉnh. Về DDD, cuốn sách của Eric Evans là bản gốc, và e-book miễn phí của Microsoft về kiến trúc .NET microservices là bước tiếp theo tốt nhất. Còn project demo gRPC mình vừa chạy nằm trong thư mục `grpc-demo`, có README hướng dẫn cách chạy.
 
-## Slide 45: Questions  `[60:00]`
+## Slide 44: Questions  `[60:00]`
 
 Phần của mình đến đây là hết. Cảm ơn mọi người! Mình sẵn sàng nhận câu hỏi.
 

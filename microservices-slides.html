@@ -1,363 +1,956 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Microservices with .NET 8</title>
-<style>
-  :root {
-    --navy: #1d2b4f;
-    --text: #2f3542;
-    --muted: #6b7280;
-    --purple: #7d55c7;
-    --purple-soft: #f5f1fc;
-    --teal: #179c84;
-    --teal-soft: #ecf8f5;
-    --red: #d1344f;
-    --red-border: #eaa2ad;
-    --red-soft: #fdf0f2;
-    --amber: #b7791f;
-    --amber-soft: #fdf6e7;
-    --line: #e3e5ea;
-    --code-bg: #f7f8fa;
-    --scale: 1;
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: #e9ebef; font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; color: var(--text); }
-  .slide {
-    position: absolute; left: 50%; top: 50%;
-    width: 1280px; height: 720px; padding: 40px 64px 44px;
-    background: #fff; overflow: hidden;
-    transform: translate(-50%, -50%) scale(var(--scale));
-    display: none; flex-direction: column; gap: 18px;
-    box-shadow: 0 6px 30px rgba(0,0,0,.12);
-  }
-  .slide.active { display: flex; }
-  .num { position: absolute; right: 26px; bottom: 16px; font-size: 13px; color: var(--muted); }
-  h1 { margin: 0; font-size: 40px; font-weight: 700; color: var(--navy); letter-spacing: -.3px; }
-  .intro { margin: -8px 0 0; font-size: 18px; line-height: 1.45; color: var(--muted); }
-  p { margin: 0; font-size: 18px; line-height: 1.45; }
-  ul, ol { margin: 0; padding-left: 22px; font-size: 18px; line-height: 1.5; }
-  li + li { margin-top: 3px; }
-  b, strong { color: var(--navy); }
-  code { font-family: Consolas, "Cascadia Mono", monospace; font-size: .88em; background: var(--code-bg); border: 1px solid var(--line); border-radius: 5px; padding: 0 5px; }
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Microservices with .NET 8</title>
+    <style>
+      :root {
+        --navy: #1d2b4f;
+        --text: #2f3542;
+        --muted: #6b7280;
+        --purple: #7d55c7;
+        --purple-soft: #f5f1fc;
+        --teal: #179c84;
+        --teal-soft: #ecf8f5;
+        --red: #d1344f;
+        --red-border: #eaa2ad;
+        --red-soft: #fdf0f2;
+        --amber: #b7791f;
+        --amber-soft: #fdf6e7;
+        --line: #e3e5ea;
+        --code-bg: #f7f8fa;
+        --scale: 1;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #e9ebef;
+        font-family:
+          "Segoe UI",
+          system-ui,
+          -apple-system,
+          Roboto,
+          Arial,
+          sans-serif;
+        color: var(--text);
+      }
+      .slide {
+        position: absolute;
+        left: 50%;
+        top: calc(50% - 22px);
+        width: 1280px;
+        height: 720px;
+        padding: 40px 64px 44px;
+        background: #fff;
+        overflow: hidden;
+        transform: translate(-50%, -50%) scale(var(--scale));
+        display: none;
+        flex-direction: column;
+        gap: 18px;
+        box-shadow: 0 6px 30px rgba(0, 0, 0, 0.12);
+      }
+      .slide.active {
+        display: flex;
+      }
+      .num {
+        position: absolute;
+        right: 26px;
+        bottom: 16px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      h1 {
+        margin: 0;
+        font-size: 40px;
+        font-weight: 700;
+        color: var(--navy);
+        letter-spacing: -0.3px;
+      }
+      .intro {
+        margin: -8px 0 0;
+        font-size: 18px;
+        line-height: 1.45;
+        color: var(--muted);
+      }
+      p {
+        margin: 0;
+        font-size: 18px;
+        line-height: 1.45;
+      }
+      ul,
+      ol {
+        margin: 0;
+        padding-left: 22px;
+        font-size: 18px;
+        line-height: 1.5;
+      }
+      li + li {
+        margin-top: 3px;
+      }
+      b,
+      strong {
+        color: var(--navy);
+      }
+      code {
+        font-family: Consolas, "Cascadia Mono", monospace;
+        font-size: 0.88em;
+        background: var(--code-bg);
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        padding: 0 5px;
+      }
 
-  /* boxes */
-  .box { border: 2px solid var(--purple); border-radius: 16px; padding: 14px 20px; background: #fff; }
-  .box .hd { color: var(--purple); font-weight: 700; font-size: 18px; text-transform: uppercase; letter-spacing: .4px; text-align: center; margin-bottom: 8px; }
-  .box.left .hd { text-align: left; }
-  .box.teal { border-color: var(--teal); } .box.teal .hd { color: var(--teal); }
-  .box.red { border-color: var(--red-border); background: var(--red-soft); } .box.red .hd { color: var(--red); }
-  .box.amber { border-color: #e7c27d; background: var(--amber-soft); } .box.amber .hd { color: var(--amber); }
-  .box.grey { border-color: #c9ccd3; } .box.grey .hd { color: var(--muted); }
-  .box.dashed { border-style: dashed; }
-  .box.soft { background: var(--purple-soft); }
-  .box p, .box li { font-size: 17px; }
-  .box .center { text-align: center; }
-  .callout { background: var(--red-soft); border: 2px solid var(--red-border); color: var(--red); font-weight: 700; font-size: 19px; border-radius: 12px; padding: 12px 22px; text-align: center; }
-  .callout.teal { background: var(--teal-soft); border-color: #9fd8cb; color: #127a67; }
-  .callout.purple { background: var(--purple-soft); border-color: #cbb8ee; color: var(--purple); }
-  .note { font-size: 14px; color: var(--muted); }
-  .box code { overflow-wrap: anywhere; }
-  .big .box p, .big .box li { font-size: 20px; }
-  .big .box .hd { font-size: 19px; }
-  .chip.wrap { white-space: normal; }
-  .tight .chip { font-size: 14px; padding: 5px 9px; }
-  .tight .flow { gap: 6px; }
+      /* boxes */
+      .box {
+        border: 2px solid var(--purple);
+        border-radius: 16px;
+        padding: 14px 20px;
+        background: #fff;
+      }
+      .box .hd {
+        color: var(--purple);
+        font-weight: 700;
+        font-size: 18px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        text-align: center;
+        margin-bottom: 8px;
+      }
+      .box.left .hd {
+        text-align: left;
+      }
+      .box.teal {
+        border-color: var(--teal);
+      }
+      .box.teal .hd {
+        color: var(--teal);
+      }
+      .box.red {
+        border-color: var(--red-border);
+        background: var(--red-soft);
+      }
+      .box.red .hd {
+        color: var(--red);
+      }
+      .box.amber {
+        border-color: #e7c27d;
+        background: var(--amber-soft);
+      }
+      .box.amber .hd {
+        color: var(--amber);
+      }
+      .box.grey {
+        border-color: #c9ccd3;
+      }
+      .box.grey .hd {
+        color: var(--muted);
+      }
+      .box.dashed {
+        border-style: dashed;
+      }
+      .box.soft {
+        background: var(--purple-soft);
+      }
+      .box p,
+      .box li {
+        font-size: 17px;
+      }
+      .box .center {
+        text-align: center;
+      }
+      .callout {
+        background: var(--red-soft);
+        border: 2px solid var(--red-border);
+        color: var(--red);
+        font-weight: 700;
+        font-size: 19px;
+        border-radius: 12px;
+        padding: 12px 22px;
+        text-align: center;
+      }
+      .callout.teal {
+        background: var(--teal-soft);
+        border-color: #9fd8cb;
+        color: #127a67;
+      }
+      .callout.purple {
+        background: var(--purple-soft);
+        border-color: #cbb8ee;
+        color: var(--purple);
+      }
+      .note {
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .box code {
+        overflow-wrap: anywhere;
+      }
+      .big .box p,
+      .big .box li {
+        font-size: 20px;
+      }
+      .big .box .hd {
+        font-size: 19px;
+      }
+      .chip.wrap {
+        white-space: normal;
+      }
+      .tight .chip {
+        font-size: 14px;
+        padding: 5px 9px;
+      }
+      .tight .flow {
+        gap: 6px;
+      }
 
-  /* layout */
-  .row { display: flex; gap: 18px; }
-  .row > * { flex: 1; min-width: 0; }
-  .g2 { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 18px; }
-  .g3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; }
-  .g4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; }
-  .fill { flex: 1; min-height: 0; }
-  .vcenter { justify-content: center; }
-  .stack { display: flex; flex-direction: column; gap: 12px; }
+      /* layout */
+      .row {
+        display: flex;
+        gap: 18px;
+      }
+      .row > * {
+        flex: 1;
+        min-width: 0;
+      }
+      .g2 {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 18px;
+      }
+      .g3 {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .g4 {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .fill {
+        flex: 1;
+        min-height: 0;
+      }
+      .vcenter {
+        justify-content: center;
+      }
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
 
-  /* flow diagrams */
-  .flow { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
-  .flow.center { justify-content: center; }
-  .chip { display: inline-block; border: 2px solid var(--purple); color: var(--purple); background: #fff; border-radius: 10px; padding: 7px 14px; font-weight: 600; font-size: 16px; white-space: nowrap; text-align: center; }
-  .chip.teal { border-color: var(--teal); color: var(--teal); }
-  .chip.red { border-color: var(--red-border); color: var(--red); background: var(--red-soft); }
-  .chip.grey { border-color: #c9ccd3; color: var(--muted); }
-  .chip.dashed { border-style: dashed; }
-  .chip.solid { background: var(--purple); color: #fff; }
-  .chip.solid.teal { background: var(--teal); color: #fff; }
-  .chip small { display: block; font-weight: 400; font-size: 13px; color: var(--muted); }
-  .arr { flex: none; width: 46px; height: 18px; color: var(--teal); }
-  .arr.long { width: 80px; }
-  .arr.down { width: 18px; height: 34px; }
-  .lbl { font-size: 13px; color: var(--teal); font-weight: 600; text-align: center; }
+      /* flow diagrams */
+      .flow {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: nowrap;
+      }
+      .flow.center {
+        justify-content: center;
+      }
+      .chip {
+        display: inline-block;
+        border: 2px solid var(--purple);
+        color: var(--purple);
+        background: #fff;
+        border-radius: 10px;
+        padding: 7px 14px;
+        font-weight: 600;
+        font-size: 16px;
+        white-space: nowrap;
+        text-align: center;
+      }
+      .chip.teal {
+        border-color: var(--teal);
+        color: var(--teal);
+      }
+      .chip.red {
+        border-color: var(--red-border);
+        color: var(--red);
+        background: var(--red-soft);
+      }
+      .chip.grey {
+        border-color: #c9ccd3;
+        color: var(--muted);
+      }
+      .chip.dashed {
+        border-style: dashed;
+      }
+      .chip.solid {
+        background: var(--purple);
+        color: #fff;
+      }
+      .chip.solid.teal {
+        background: var(--teal);
+        color: #fff;
+      }
+      .chip small {
+        display: block;
+        font-weight: 400;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .arr {
+        flex: none;
+        width: 46px;
+        height: 18px;
+        color: var(--teal);
+      }
+      .arr.long {
+        width: 80px;
+      }
+      .arr.down {
+        width: 18px;
+        height: 34px;
+      }
+      .lbl {
+        font-size: 13px;
+        color: var(--teal);
+        font-weight: 600;
+        text-align: center;
+      }
 
-  /* tables */
-  table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 16px; border: 2px solid var(--line); border-radius: 12px; overflow: hidden; }
-  th { background: var(--purple-soft); color: var(--purple); text-align: left; font-weight: 700; padding: 8px 12px; border-bottom: 2px solid var(--line); }
-  td { padding: 7px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  tr:last-child td { border-bottom: 0; }
-  td:first-child { font-weight: 600; color: var(--navy); }
-  table.small { font-size: 14.5px; } table.small td, table.small th { padding: 6px 10px; }
+      /* tables */
+      table {
+        border-collapse: separate;
+        border-spacing: 0;
+        width: 100%;
+        font-size: 16px;
+        border: 2px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      th {
+        background: var(--purple-soft);
+        color: var(--purple);
+        text-align: left;
+        font-weight: 700;
+        padding: 8px 12px;
+        border-bottom: 2px solid var(--line);
+      }
+      td {
+        padding: 7px 12px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      td:first-child {
+        font-weight: 600;
+        color: var(--navy);
+      }
+      table.small {
+        font-size: 14.5px;
+      }
+      table.small td,
+      table.small th {
+        padding: 6px 10px;
+      }
 
-  /* code */
-  pre.code { margin: 0; background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 11px 14px; font: 13px/1.42 Consolas, "Cascadia Mono", monospace; color: #24292f; white-space: pre; overflow: hidden; }
-  pre.code.sm { font-size: 12px; line-height: 1.36; }
-  pre.code .c { color: #8a8f98; }
-  pre.code .k { color: #7d55c7; }
-  pre.code .s { color: #127a67; }
-  .cap { font-size: 14px; font-weight: 700; color: var(--purple); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .4px; }
+      /* code */
+      pre.code {
+        margin: 0;
+        background: var(--code-bg);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 11px 14px;
+        font:
+          13px/1.42 Consolas,
+          "Cascadia Mono",
+          monospace;
+        color: #24292f;
+        white-space: pre;
+        overflow: hidden;
+      }
+      pre.code.sm {
+        font-size: 12px;
+        line-height: 1.36;
+      }
+      pre.code .c {
+        color: #8a8f98;
+      }
+      pre.code .k {
+        color: #7d55c7;
+      }
+      pre.code .s {
+        color: #127a67;
+      }
+      .cap {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--purple);
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
 
-  /* title & divider slides */
-  .title-slide { justify-content: center; align-items: center; text-align: center; gap: 22px; }
-  .title-slide h1 { font-size: 60px; }
-  .divider { justify-content: center; padding-left: 110px; border-left: 14px solid var(--purple); }
-  .divider .part { font-size: 22px; font-weight: 700; color: var(--purple); text-transform: uppercase; letter-spacing: 2px; }
-  .divider h1 { font-size: 52px; }
-  .divider .intro { margin-top: 4px; font-size: 20px; }
+      /* title & divider slides */
+      .title-slide {
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        gap: 22px;
+      }
+      .title-slide h1 {
+        font-size: 60px;
+      }
+      .divider {
+        justify-content: center;
+        padding-left: 110px;
+        border-left: 14px solid var(--purple);
+      }
+      .divider .part {
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--purple);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+      }
+      .divider h1 {
+        font-size: 52px;
+      }
+      .divider .intro {
+        margin-top: 4px;
+        font-size: 20px;
+      }
 
-  /* nav hint */
-  .hint { position: fixed; left: 14px; bottom: 10px; font-size: 12px; color: #8a8f98; }
-  @media print {
-    @page { size: 1280px 720px; margin: 0; }
-    html, body { background: #fff; }
-    .slide { display: flex !important; position: relative; left: 0; top: 0; transform: none; box-shadow: none; page-break-after: always; break-after: page; }
-    .hint { display: none; }
-  }
-</style>
-</head>
-<body>
+      /* nav hint */
+      .hint {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 8px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: #8a8f98;
+      }
+      .hint button {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border: 1px solid #c9cdd4;
+        border-radius: 6px;
+        background: #fff;
+        color: var(--navy);
+        font-size: 16px;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .hint button:hover:not(:disabled) {
+        background: #f3f4f6;
+      }
+      .hint button:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .hint input {
+        width: 44px;
+        height: 28px;
+        padding: 0 4px;
+        border: 1px solid #c9cdd4;
+        border-radius: 6px;
+        font: inherit;
+        font-size: 13px;
+        text-align: center;
+        color: var(--text);
+      }
+      .hint .sep {
+        margin: 0 4px;
+      }
+      @media print {
+        @page {
+          size: 1280px 720px;
+          margin: 0;
+        }
+        html,
+        body {
+          background: #fff;
+        }
+        .slide {
+          display: flex !important;
+          position: relative;
+          left: 0;
+          top: 0;
+          transform: none;
+          box-shadow: none;
+          page-break-after: always;
+          break-after: page;
+        }
+        .hint {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute">
+      <defs>
+        <symbol id="ar" viewBox="0 0 46 18">
+          <line x1="1" y1="9" x2="40" y2="9" stroke="currentColor" stroke-width="2.6" />
+          <path d="M33 3 L44 9 L33 15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="arl" viewBox="0 0 46 18">
+          <line x1="6" y1="9" x2="45" y2="9" stroke="currentColor" stroke-width="2.6" />
+          <path d="M13 3 L2 9 L13 15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="ard" viewBox="0 0 18 34">
+          <line x1="9" y1="1" x2="9" y2="28" stroke="currentColor" stroke-width="2.6" />
+          <path d="M3 21 L9 32 L15 21" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round" />
+        </symbol>
+      </defs>
+    </svg>
 
-<svg width="0" height="0" style="position:absolute">
-  <defs>
-    <symbol id="ar" viewBox="0 0 46 18"><line x1="1" y1="9" x2="40" y2="9" stroke="currentColor" stroke-width="2.6"/><path d="M33 3 L44 9 L33 15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/></symbol>
-    <symbol id="arl" viewBox="0 0 46 18"><line x1="6" y1="9" x2="45" y2="9" stroke="currentColor" stroke-width="2.6"/><path d="M13 3 L2 9 L13 15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/></symbol>
-    <symbol id="ard" viewBox="0 0 18 34"><line x1="9" y1="1" x2="9" y2="28" stroke="currentColor" stroke-width="2.6"/><path d="M3 21 L9 32 L15 21" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/></symbol>
-  </defs>
-</svg>
+    <!-- 1 -->
+    <section class="slide title-slide">
+      <h1>Microservices with .NET 8</h1>
+      <p class="intro" style="margin: 0; font-size: 22px">Microservices &amp; DDD · REST and gRPC · Messaging · API Gateway</p>
+      <div class="flow center"></div>
+    </section>
 
-<!-- 1 -->
-<section class="slide title-slide">
-  <h1>Microservices with .NET 8</h1>
-  <p class="intro" style="margin:0;font-size:22px">Microservices &amp; DDD · REST and gRPC · Messaging · API Gateway</p>
-  <div class="flow center">
-  </div>
-</section>
+    <!-- 2 -->
+    <section class="slide">
+      <h1>Agenda</h1>
+      <table style="font-size: 19px">
+        <tr>
+          <th style="width: 44px">#</th>
+          <th>Topic</th>
+          <th style="width: 110px">Time</th>
+        </tr>
+        <tr>
+          <td></td>
+          <td>Opening</td>
+          <td>~2 min</td>
+        </tr>
+        <tr>
+          <td>1</td>
+          <td><b>Introduction to Microservices &amp; DDD</b>: monolith vs. microservices, design principles, DDD, bounded contexts, entities, value objects</td>
+          <td>~16 min</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td><b>Building a microservice</b> (short): from analysis to a running container</td>
+          <td>~5 min</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td><b>Synchronous communication</b>: service-to-service calls, REST vs. gRPC, Protobuf and gRPC in .NET</td>
+          <td>~10 min</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td><b>Asynchronous communication</b>: event-driven basics, message brokers (RabbitMQ), pub/sub</td>
+          <td>~10 min</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td><b>API Gateway &amp; BFF</b>: role of a gateway, Backends for Frontends, YARP and Ocelot</td>
+          <td>~7 min</td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td><b>Demo</b>: gRPC call, Basket → Discount (runs locally, no Docker)</td>
+          <td>~6 min</td>
+        </tr>
+        <tr>
+          <td>7</td>
+          <td>Summary and Q&amp;A</td>
+          <td>~4 min</td>
+        </tr>
+      </table>
+    </section>
 
-<!-- 2 -->
-<section class="slide">
-  <h1>Agenda</h1>
-  <table style="font-size:19px">
-    <tr><th style="width:44px">#</th><th>Topic</th><th style="width:110px">Time</th></tr>
-    <tr><td></td><td>Opening</td><td>~2 min</td></tr>
-    <tr><td>1</td><td><b>Introduction to Microservices &amp; DDD</b>: monolith vs. microservices, design principles, DDD, bounded contexts, entities, value objects</td><td>~16 min</td></tr>
-    <tr><td>2</td><td><b>Building a microservice</b> (short): from analysis to a running container</td><td>~5 min</td></tr>
-    <tr><td>3</td><td><b>Synchronous communication</b>: service-to-service calls, REST vs. gRPC, Protobuf and gRPC in .NET</td><td>~10 min</td></tr>
-    <tr><td>4</td><td><b>Asynchronous communication</b>: event-driven basics, message brokers (RabbitMQ), pub/sub</td><td>~10 min</td></tr>
-    <tr><td>5</td><td><b>API Gateway &amp; BFF</b>: role of a gateway, Backends for Frontends, YARP and Ocelot</td><td>~7 min</td></tr>
-    <tr><td>6</td><td><b>Demo</b>: one checkout, end to end</td><td>~6 min</td></tr>
-    <tr><td>7</td><td>Summary and Q&amp;A</td><td>~4 min</td></tr>
-  </table>
-</section>
+    <!-- 3 -->
+    <section class="slide divider">
+      <div class="part">Part 1</div>
+      <h1>Introduction to Microservices &amp; DDD</h1>
+      <p class="intro">What microservices are, how to design them, and where to draw the lines</p>
+    </section>
 
-<!-- 3 -->
-<section class="slide divider">
-  <div class="part">Part 1</div>
-  <h1>Introduction to Microservices &amp; DDD</h1>
-  <p class="intro">What microservices are, how to design them, and where to draw the lines</p>
-</section>
+    <!-- 4 -->
+    <section class="slide">
+      <h1>Architecture design journey</h1>
+      <p class="intro">From one big application to many small units. Moving right, the pieces get smaller and the number of databases grows.</p>
+      <img class="fill" src="architecture-journey.png" alt="Architecture journey: Monolithic, Modular Monolithic (macroservices), Microservices, Serverless (nanoservices)" style="width: 100%; min-height: 0; object-fit: contain" />
 
-<!-- 4 -->
-<section class="slide">
-  <h1>Architecture design journey</h1>
-  <p class="intro">From one big application to many small units. Moving right, the pieces get smaller and the number of databases grows.</p>
-  <div class="flow" style="align-items:stretch">
-    <div class="box fill"><div class="hd">Monolithic</div><p class="center">One application<br>One database</p></div>
-    <svg class="arr" style="align-self:center"><use href="#ar"/></svg>
-    <div class="box fill"><div class="hd">Modular Monolithic</div><p class="center"><b>Macroservices</b><br>A few big parts, still one deployment</p></div>
-    <svg class="arr" style="align-self:center"><use href="#ar"/></svg>
-    <div class="box teal fill"><div class="hd">Microservices</div><p class="center">Many small services<br>Each owns its database</p></div>
-    <svg class="arr" style="align-self:center"><use href="#ar"/></svg>
-    <div class="box fill"><div class="hd">Serverless</div><p class="center"><b>Nanoservices</b><br>Individual functions</p></div>
-  </div>
-  <div class="callout">Which approach should we choose? It depends on your project.</div>
-  <ul>
-    <li>Use a <b>mixed architecture</b>, and plan <b>transitions</b> between architectures as the system grows.</li>
-    <li>Martin Fowler and Sam Newman both recommend <b>monolith first</b>, then extracting services one by one.</li>
-  </ul>
-</section>
+      <div class="callout">Which approach should we choose? It depends on your project.</div>
+      <ul>
+        <li>Use a <b>mixed architecture</b>, and plan <b>transitions</b> between architectures as the system grows.</li>
+        <li>Martin Fowler and Sam Newman both recommend <b>monolith first</b>, then extracting services one by one.</li>
+      </ul>
+    </section>
 
-<!-- 5 -->
-<section class="slide">
-  <h1>What are microservices?</h1>
-  <p class="intro">Small, independent services that work together to form one application.</p>
-  <div class="g3">
-    <div class="box"><div class="hd">Small &amp; independent</div><p class="center">Loosely coupled services that work together</p></div>
-    <div class="box"><div class="hd">Own codebase</div><p class="center">Each one owned by a small team</p></div>
-    <div class="box"><div class="hd">Well-defined APIs</div><p class="center">HTTP/REST, gRPC, or messaging</p></div>
-    <div class="box"><div class="hd">Independent deployment</div><p class="center">Release one service without touching the others</p></div>
-    <div class="box"><div class="hd">Technology agnostic</div><p class="center">Each service can use a different stack</p></div>
-    <div class="box teal"><div class="hd">Own database</div><p class="center">Never shared with other services</p></div>
-  </div>
-  <div class="callout purple" style="font-weight:600;font-size:18px">"…an approach to developing a single application as a suite of small services, each running in its own process and communicating with lightweight mechanisms, often an HTTP resource API." — Martin Fowler</div>
-</section>
-
-<!-- 6 -->
-<section class="slide">
-  <h1>Monolith vs. microservices</h1>
-  <table class="small">
-    <tr><th>Aspect</th><th>Monolith</th><th>Microservices</th></tr>
-    <tr><td>Structure</td><td>One undivided unit</td><td>Many heterogeneous services and databases</td></tr>
-    <tr><td>Scalability</td><td>Scale the whole app</td><td>Scale each service independently</td></tr>
-    <tr><td>Deployment</td><td>Simple, all at once</td><td>Independent, zero-downtime, CI/CD</td></tr>
-    <tr><td>Data</td><td>One shared database</td><td>Database per service (polyglot)</td></tr>
-    <tr><td>Failure</td><td>One bug can take down everything</td><td>Faults are isolated</td></tr>
-    <tr><td>Team fit</td><td>Small or new teams</td><td>Experienced teams with container and DevOps skills</td></tr>
-  </table>
-  <div class="g2" style="grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)">
-    <div class="box red tight">
-      <div class="hd">Monolith deployment</div>
-      <div class="flow center"><span class="chip">Teams 1·2·3</span><svg class="arr" style="width:26px"><use href="#ar"/></svg><span class="chip">1 code base</span><svg class="arr" style="width:26px"><use href="#ar"/></svg><span class="chip">1 pipeline</span><svg class="arr" style="width:26px"><use href="#ar"/></svg><span class="chip">Production</span></div>
-    </div>
-    <div class="box teal tight">
-      <div class="hd">Microservices deployment</div>
-      <div class="stack" style="gap:6px">
-        <div class="flow center"><span class="chip teal">Product team</span><svg class="arr"><use href="#ar"/></svg><span class="chip">own pipeline</span><svg class="arr"><use href="#ar"/></svg><span class="chip teal">Product service</span></div>
-        <div class="flow center"><span class="chip teal">Order team</span><svg class="arr"><use href="#ar"/></svg><span class="chip">own pipeline</span><svg class="arr"><use href="#ar"/></svg><span class="chip teal">Order service</span></div>
+    <!-- 5 -->
+    <section class="slide">
+      <h1>What are microservices?</h1>
+      <p class="intro">Small, independent services that work together to form one application.</p>
+      <div class="g3">
+        <div class="box">
+          <div class="hd">Small &amp; independent</div>
+          <p class="center">Loosely coupled services that work together</p>
+        </div>
+        <div class="box">
+          <div class="hd">Own codebase</div>
+          <p class="center">Each one owned by a small team</p>
+        </div>
+        <div class="box">
+          <div class="hd">Well-defined APIs</div>
+          <p class="center">HTTP/REST, gRPC, or messaging</p>
+        </div>
+        <div class="box">
+          <div class="hd">Independent deployment</div>
+          <p class="center">Release one service without touching the others</p>
+        </div>
+        <div class="box">
+          <div class="hd">Technology agnostic</div>
+          <p class="center">Each service can use a different stack</p>
+        </div>
+        <div class="box teal">
+          <div class="hd">Own database</div>
+          <p class="center">Never shared with other services</p>
+        </div>
       </div>
-    </div>
-  </div>
-</section>
+      <div class="callout purple" style="font-weight: 600; font-size: 18px">"…an approach to developing a single application as a suite of small services, each running in its own process and communicating with lightweight mechanisms, often an HTTP resource API." — Martin Fowler</div>
+    </section>
 
-<!-- 7 -->
-<section class="slide big">
-  <h1>Microservices design principles</h1>
-  <p class="intro">Six principles that keep a microservice system from turning into a distributed monolith.</p>
-  <div class="g3">
-    <div class="box"><div class="hd">1 · Single responsibility</div><p class="center">One service per <b>business capability</b> (Catalog, Basket, Ordering), not per technical layer</p></div>
-    <div class="box"><div class="hd">2 · Loose coupling, high cohesion</div><p class="center">Change one service without changing others; related logic stays together</p></div>
-    <div class="box"><div class="hd">3 · Autonomy</div><p class="center">Deploy independently and <b>own your data</b> (database per service)</p></div>
-    <div class="box teal"><div class="hd">4 · Well-defined contracts</div><p class="center">Talk only through APIs and events: <i>smart endpoints, dumb pipes</i></p></div>
-    <div class="box teal"><div class="hd">5 · Design for failure</div><p class="center">Timeouts, retries, circuit breakers: one failing service must not take down the rest</p></div>
-    <div class="box teal"><div class="hd">6 · Automate &amp; observe</div><p class="center">CI/CD, containers, health checks, centralized logging</p></div>
-  </div>
-  <p class="note">Based on Martin Fowler's microservice characteristics: componentization via services, business capabilities, products not projects, smart endpoints and dumb pipes, decentralized governance and data, infrastructure automation, design for failure.</p>
-</section>
+    <!-- 6 -->
+    <section class="slide">
+      <h1>Monolith vs. microservices</h1>
+      <table class="small">
+        <tr>
+          <th>Aspect</th>
+          <th>Monolith</th>
+          <th>Microservices</th>
+        </tr>
+        <tr>
+          <td>Structure</td>
+          <td>One undivided unit</td>
+          <td>Many heterogeneous services and databases</td>
+        </tr>
+        <tr>
+          <td>Scalability</td>
+          <td>Scale the whole app</td>
+          <td>Scale each service independently</td>
+        </tr>
+        <tr>
+          <td>Deployment</td>
+          <td>Simple, all at once</td>
+          <td>Independent, zero-downtime, CI/CD</td>
+        </tr>
+        <tr>
+          <td>Data</td>
+          <td>One shared database</td>
+          <td>Database per service (polyglot)</td>
+        </tr>
+        <tr>
+          <td>Failure</td>
+          <td>One bug can take down everything</td>
+          <td>Faults are isolated</td>
+        </tr>
+        <tr>
+          <td>Team fit</td>
+          <td>Small or new teams</td>
+          <td>Experienced teams with container and DevOps skills</td>
+        </tr>
+      </table>
+      <div class="g2" style="grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr)">
+        <div class="box red tight">
+          <div class="hd">Monolith deployment</div>
+          <div class="flow center">
+            <span class="chip">Teams 1·2·3</span><svg class="arr" style="width: 26px"><use href="#ar" /></svg><span class="chip">1 code base</span><svg class="arr" style="width: 26px"><use href="#ar" /></svg><span class="chip">1 pipeline</span
+            ><svg class="arr" style="width: 26px"><use href="#ar" /></svg><span class="chip">Production</span>
+          </div>
+        </div>
+        <div class="box teal tight">
+          <div class="hd">Microservices deployment</div>
+          <div class="stack" style="gap: 6px">
+            <div class="flow center">
+              <span class="chip teal">Product team</span><svg class="arr"><use href="#ar" /></svg><span class="chip">own pipeline</span><svg class="arr"><use href="#ar" /></svg><span class="chip teal">Product service</span>
+            </div>
+            <div class="flow center">
+              <span class="chip teal">Order team</span><svg class="arr"><use href="#ar" /></svg><span class="chip">own pipeline</span><svg class="arr"><use href="#ar" /></svg><span class="chip teal">Order service</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-<!-- 8 -->
-<section class="slide big">
-  <h1>Benefits and challenges</h1>
-  <p class="intro">Microservices don't remove complexity. They move it, from inside the code to between the services.</p>
-  <div class="g2">
-    <div class="box teal left"><div class="hd">✓ Benefits</div>
-      <ul><li>Agility and faster time-to-market</li><li><b>Independent scaling</b> of each service</li><li>Small, focused teams</li><li>Small, separate codebases</li><li>Easy, independent deployment (CI/CD)</li><li>Right tool for each job (polyglot)</li><li>Resilience and fault isolation</li><li>Data isolation</li></ul></div>
-    <div class="box red left"><div class="hd">! Challenges</div>
-      <ul><li>Overall system <b>complexity</b></li><li>Network problems and <b>latency</b>; chatty calls</li><li>Harder end-to-end development and testing</li><li><b>Data consistency</b> (eventual consistency)</li><li>Deployment needs DevOps investment</li><li>Centralized logging and monitoring required</li><li>Debugging across many services is hard</li></ul></div>
-  </div>
-</section>
-
-<!-- 9 -->
-<section class="slide big">
-  <h1>When to use microservices, and when not to</h1>
-  <div class="g2">
-    <div class="box teal left"><div class="hd">Use them when you need</div>
-      <ul><li>Independent deployment with <b>zero downtime</b></li><li><b>Independent scaling</b> of parts of the app</li><li>Different data stores per use case</li><li>Autonomous teams that own services</li><li>A <i>really good reason</i> (not hype)</li></ul></div>
-    <div class="box red left"><div class="hd">Avoid them when</div>
-      <ul><li>You would build a <b>distributed monolith</b> (the worst case)</li><li>You have no DevOps, CI/CD, containers, or monitoring</li><li>The team is <b>small</b></li><li>The product is a <b>brand-new startup</b> with an unclear domain</li><li>Services would use a <b>shared database</b> (anti-pattern)</li></ul></div>
-  </div>
-  <div class="callout">Distributed monolith = all the complexity of microservices, none of the benefits</div>
-</section>
-
-<!-- 10 -->
-<section class="slide">
-  <h1>Database-per-service and polyglot persistence</h1>
-  <p class="intro">Each service owns its data, changes its schema freely, and picks the storage that fits its needs.</p>
-  <div class="callout">A service's data is only accessible through its API</div>
-  <div class="g4">
-    <div class="box"><div class="hd">Catalog.API</div><div class="flow center" style="flex-direction:column;gap:4px"><svg class="arr down"><use href="#ard"/></svg><span class="chip teal">PostgreSQL + Marten</span></div><p class="center note" style="margin-top:8px">Flexible product documents</p></div>
-    <div class="box"><div class="hd">Basket.API</div><div class="flow center" style="flex-direction:column;gap:4px"><svg class="arr down"><use href="#ard"/></svg><span class="chip teal">PostgreSQL + Redis</span></div><p class="center note" style="margin-top:8px">Fast key-value carts</p></div>
-    <div class="box"><div class="hd">Discount.Grpc</div><div class="flow center" style="flex-direction:column;gap:4px"><svg class="arr down"><use href="#ard"/></svg><span class="chip teal">SQLite (EF Core)</span></div><p class="center note" style="margin-top:8px">Small coupon table</p></div>
-    <div class="box"><div class="hd">Ordering.API</div><div class="flow center" style="flex-direction:column;gap:4px"><svg class="arr down"><use href="#ard"/></svg><span class="chip teal">SQL Server (EF Core)</span></div><p class="center note" style="margin-top:8px">Rich relational orders</p></div>
-  </div>
-  <p>Four services, four storage technologies. Any change to one database doesn't affect the other services.</p>
-</section>
-
-<!-- 11 -->
-<section class="slide big">
-  <h1>Introduction to Domain-Driven Design (DDD)</h1>
-  <p class="intro">Introduced by Eric Evans (<i>Domain-Driven Design</i>, 2003). Not a technology or framework, but a way to model software around the business.</p>
-  <div class="callout teal">Core idea: break a complex problem into smaller parts, and solve each one in its own model</div>
-  <div class="g2">
-    <div class="box left"><div class="hd">Strategic DDD · the big picture</div>
-      <ul><li>Understand and model the <b>business domain</b></li><li>Find <b>subdomains</b> and <b>bounded contexts</b></li><li>Define how they relate (<b>context map</b>)</li></ul>
-      <p style="margin-top:10px;color:var(--purple);font-weight:700">→ Tells us where to split into microservices</p></div>
-    <div class="box teal left"><div class="hd">Tactical DDD · inside one service</div>
-      <ul><li>Design patterns for the code</li><li><b>Entities</b>, <b>value objects</b>, <b>aggregates</b></li><li>Domain events, repositories, domain services</li></ul>
-      <p style="margin-top:10px;color:var(--teal);font-weight:700">→ Tells us how to build one service's model</p></div>
-  </div>
-</section>
-
-<!-- 12 -->
-<section class="slide">
-  <h1>DDD core concepts</h1>
-  <p class="intro">Five words you'll hear in every DDD conversation, with their meaning in EShop.</p>
-  <table>
-    <tr><th style="width:200px">Concept</th><th>Meaning</th><th>In EShop</th></tr>
-    <tr><td>Domain</td><td>The business problem the software solves</td><td>E-commerce</td></tr>
-    <tr><td>Subdomain</td><td>One area of expertise inside the domain</td><td>Product catalog, shopping cart, discounts, orders</td></tr>
-    <tr><td>Ubiquitous language</td><td>Shared words used by domain experts <i>and</i> in the code</td><td><code>Order</code>, <code>OrderItem</code>, <code>ShippingAddress</code>, <code>Payment</code> appear in code exactly as the business says them</td></tr>
-    <tr><td>Bounded context</td><td>A logical boundary where one model and one language apply</td><td>Catalog, Basket, Discount, Ordering</td></tr>
-    <tr><td>Context map</td><td>How the bounded contexts relate and communicate</td><td>Basket → Discount (gRPC), Basket → Ordering (event)</td></tr>
-  </table>
-</section>
-
-<!-- 13 -->
-<section class="slide">
-  <h1>Bounded contexts → microservices</h1>
-  <div class="flow center"><span class="chip">Requirements</span><svg class="arr"><use href="#ar"/></svg><span class="chip">User stories</span><svg class="arr"><use href="#ar"/></svg><span class="chip">Nouns (entities) &amp; verbs (use cases)</span><svg class="arr"><use href="#ar"/></svg><span class="chip solid teal">Bounded contexts</span></div>
-  <table class="small">
-    <tr><th>User story</th><th>Noun / verb</th><th>Bounded context → service</th></tr>
-    <tr><td>List and filter products by category</td><td>Product, Category</td><td><b>Catalog</b></td></tr>
-    <tr><td>Put products into the shopping cart</td><td>ShoppingCart, Item</td><td><b>Basket</b></td></tr>
-    <tr><td>Apply coupons and see the total cost</td><td>Coupon, Discount</td><td><b>Discount</b></td></tr>
-    <tr><td>Check out the cart and create an order</td><td>Order, Address, Payment</td><td><b>Ordering</b></td></tr>
-  </table>
-  <div class="row">
-    <div class="box"><div class="hd">Product in Catalog</div><p class="center">Id · Name · Description · ImageFile · Categories · Price</p></div>
-    <div class="callout purple" style="flex:0 0 220px;align-self:center">Same word,<br>different model</div>
-    <div class="box teal"><div class="hd">Product in Ordering</div><p class="center">Id · Name · Price</p></div>
-  </div>
-  <p class="note">A bounded context is usually one microservice, but it can be split further if parts need to scale differently.</p>
-</section>
-
-<!-- 14 -->
-<section class="slide">
-  <h1>Tactical DDD: entities, value objects, aggregates</h1>
-  <table class="small">
-    <tr><th style="width:240px"></th><th>Entity</th><th>Value object</th></tr>
-    <tr><td>Identified by</td><td>Its <b>ID</b></td><td>Its <b>values</b> (no ID)</td></tr>
-    <tr><td>Two with the same data are…</td><td>Still <b>different</b> objects</td><td><b>Equal</b></td></tr>
-    <tr><td>Changes over time?</td><td>Yes, it has a <b>lifecycle</b></td><td>No, it's <b>immutable</b>: replace it instead</td></tr>
-    <tr><td>In EShop Ordering</td><td><code>Order</code>, <code>OrderItem</code>, <code>Customer</code>, <code>Product</code></td><td><code>Address</code>, <code>Payment</code>, <code>OrderName</code>, <code>OrderId</code></td></tr>
-  </table>
-  <div class="row" style="align-items:stretch">
-    <div class="box soft" style="flex:2">
-      <div class="hd">Order aggregate</div>
-      <div class="flow center" style="margin-bottom:10px"><span class="chip solid">Order · aggregate root</span></div>
+    <!-- 7 -->
+    <section class="slide big">
+      <h1>Benefits and challenges</h1>
+      <p class="intro">Microservices don't remove complexity. They move it, from inside the code to between the services.</p>
       <div class="g2">
-        <div class="stack" style="gap:6px;align-items:center"><span class="cap">Value objects</span><div class="flow center" style="flex-wrap:wrap"><span class="chip teal">OrderId</span><span class="chip teal">OrderName</span><span class="chip teal">Address ×2</span><span class="chip teal">Payment</span></div></div>
-        <div class="stack" style="gap:6px;align-items:center"><span class="cap">Entities</span><div class="flow center"><span class="chip">OrderItem × N</span></div><span class="note">changed only through <code>Order.Add</code> / <code>Order.Remove</code></span></div>
+        <div class="box teal left">
+          <div class="hd">✓ Benefits</div>
+          <ul>
+            <li>Agility and faster time-to-market</li>
+            <li><b>Independent scaling</b> of each service</li>
+            <li>Small, focused teams</li>
+            <li>Small, separate codebases</li>
+            <li>Easy, independent deployment (CI/CD)</li>
+            <li>Right tool for each job (polyglot)</li>
+            <li>Resilience and fault isolation</li>
+            <li>Data isolation</li>
+          </ul>
+        </div>
+        <div class="box red left">
+          <div class="hd">! Challenges</div>
+          <ul>
+            <li>Overall system <b>complexity</b></li>
+            <li>Network problems and <b>latency</b>; chatty calls</li>
+            <li>Harder end-to-end development and testing</li>
+            <li><b>Data consistency</b> (eventual consistency)</li>
+            <li>Deployment needs DevOps investment</li>
+            <li>Centralized logging and monitoring required</li>
+            <li>Debugging across many services is hard</li>
+          </ul>
+        </div>
       </div>
-    </div>
-    <div class="box teal" style="flex:1"><div class="hd">Aggregate</div><p class="center">A cluster of entities and value objects treated as <b>one unit of consistency</b>. Its main entity, the <b>aggregate root</b>, is the only entry point.</p></div>
-  </div>
-</section>
+    </section>
 
-<!-- 15 -->
-<section class="slide">
-  <h1>Entities and value objects in the Ordering code</h1>
-  <div class="g2 fill">
-    <div class="stack">
-      <pre class="code sm"><span class="c">// Entity: identity + audit fields</span>
+    <!-- 8 -->
+    <section class="slide big">
+      <h1>When to use microservices, and when not to</h1>
+      <div class="g2">
+        <div class="box teal left">
+          <div class="hd">Use them when you need</div>
+          <ul>
+            <li>Independent deployment with <b>zero downtime</b></li>
+            <li><b>Independent scaling</b> of parts of the app</li>
+            <li>Different data stores per use case</li>
+            <li>Autonomous teams that own services</li>
+            <li>A <i>really good reason</i> (not hype)</li>
+          </ul>
+        </div>
+        <div class="box red left">
+          <div class="hd">Avoid them when</div>
+          <ul>
+            <li>You would build a <b>distributed monolith</b> (the worst case)</li>
+            <li>You have no DevOps, CI/CD, containers, or monitoring</li>
+            <li>The team is <b>small</b></li>
+            <li>The product is a <b>brand-new startup</b> with an unclear domain</li>
+            <li>Services would use a <b>shared database</b> (anti-pattern)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout">Distributed monolith = all the complexity of microservices, none of the benefits</div>
+    </section>
+
+    <!-- 9 -->
+    <section class="slide big">
+      <h1>Microservices design principles</h1>
+      <p class="intro">Six principles that keep a microservice system from turning into a distributed monolith.</p>
+      <div class="g3">
+        <div class="box">
+          <div class="hd">1 · Single responsibility</div>
+          <p class="center">One service per <b>business capability</b> (Catalog, Basket, Ordering), not per technical layer</p>
+        </div>
+        <div class="box">
+          <div class="hd">2 · Loose coupling, high cohesion</div>
+          <p class="center">Change one service without changing others; related logic stays together</p>
+        </div>
+        <div class="box">
+          <div class="hd">3 · Autonomy</div>
+          <p class="center">Deploy independently and <b>own your data</b> (database per service)</p>
+        </div>
+        <div class="box teal">
+          <div class="hd">4 · Well-defined contracts</div>
+          <p class="center">Talk only through APIs and events: <i>smart endpoints, dumb pipes</i></p>
+        </div>
+        <div class="box teal">
+          <div class="hd">5 · Design for failure</div>
+          <p class="center">Timeouts, retries, circuit breakers: one failing service must not take down the rest</p>
+        </div>
+        <div class="box teal">
+          <div class="hd">6 · Automate &amp; observe</div>
+          <p class="center">CI/CD, containers, health checks, centralized logging</p>
+        </div>
+      </div>
+      <p class="note">Based on Martin Fowler's microservice characteristics: componentization via services, business capabilities, products not projects, smart endpoints and dumb pipes, decentralized governance and data, infrastructure automation, design for failure.</p>
+    </section>
+
+    <!-- 10 -->
+    <section class="slide big">
+      <h1>Introduction to Domain-Driven Design (DDD)</h1>
+      <p class="intro">Introduced by Eric Evans (<i>Domain-Driven Design</i>, 2003). Not a technology or framework, but a way to model software around the business.</p>
+      <div class="callout teal">Core idea: break a complex problem into smaller parts, and solve each one in its own model</div>
+      <div class="g2">
+        <div class="box left">
+          <div class="hd">Strategic DDD · the big picture</div>
+          <ul>
+            <li>Understand and model the <b>business domain</b></li>
+            <li>Find <b>subdomains</b> and <b>bounded contexts</b></li>
+            <li>Define how they relate (<b>context map</b>)</li>
+          </ul>
+          <p style="margin-top: 10px; color: var(--purple); font-weight: 700">→ Tells us where to split into microservices</p>
+        </div>
+        <div class="box teal left">
+          <div class="hd">Tactical DDD · inside one service</div>
+          <ul>
+            <li>Design patterns for the code</li>
+            <li><b>Entities</b>, <b>value objects</b>, <b>aggregates</b></li>
+            <li>Domain events, repositories, domain services</li>
+          </ul>
+          <p style="margin-top: 10px; color: var(--teal); font-weight: 700">→ Tells us how to build one service's model</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 11 -->
+    <section class="slide">
+      <h1>DDD core concepts</h1>
+      <p class="intro">Five words you'll hear in every DDD conversation, with their meaning in EShop.</p>
+      <table>
+        <tr>
+          <th style="width: 200px">Concept</th>
+          <th>Meaning</th>
+          <th>In EShop</th>
+        </tr>
+        <tr>
+          <td>Domain</td>
+          <td>The business problem the software solves</td>
+          <td>E-commerce</td>
+        </tr>
+        <tr>
+          <td>Subdomain</td>
+          <td>One area of expertise inside the domain</td>
+          <td>Product catalog, shopping cart, discounts, orders</td>
+        </tr>
+        <tr>
+          <td>Ubiquitous language</td>
+          <td>Shared words used by domain experts <i>and</i> in the code</td>
+          <td><code>Order</code>, <code>OrderItem</code>, <code>ShippingAddress</code>, <code>Payment</code> appear in code exactly as the business says them</td>
+        </tr>
+        <tr>
+          <td>Bounded context</td>
+          <td>A logical boundary where one model and one language apply</td>
+          <td>Catalog, Basket, Discount, Ordering</td>
+        </tr>
+        <tr>
+          <td>Context map</td>
+          <td>How the bounded contexts relate and communicate</td>
+          <td>Basket → Discount (gRPC), Basket → Ordering (event)</td>
+        </tr>
+      </table>
+    </section>
+
+    <!-- 12 -->
+    <section class="slide">
+      <h1>Bounded contexts → microservices</h1>
+      <div class="flow center">
+        <span class="chip">Requirements</span><svg class="arr"><use href="#ar" /></svg><span class="chip">User stories</span><svg class="arr"><use href="#ar" /></svg><span class="chip">Nouns (entities) &amp; verbs (use cases)</span><svg class="arr"><use href="#ar" /></svg
+        ><span class="chip solid teal">Bounded contexts</span>
+      </div>
+      <table class="small">
+        <tr>
+          <th>User story</th>
+          <th>Noun / verb</th>
+          <th>Bounded context → service</th>
+        </tr>
+        <tr>
+          <td>List and filter products by category</td>
+          <td>Product, Category</td>
+          <td><b>Catalog</b></td>
+        </tr>
+        <tr>
+          <td>Put products into the shopping cart</td>
+          <td>ShoppingCart, Item</td>
+          <td><b>Basket</b></td>
+        </tr>
+        <tr>
+          <td>Apply coupons and see the total cost</td>
+          <td>Coupon, Discount</td>
+          <td><b>Discount</b></td>
+        </tr>
+        <tr>
+          <td>Check out the cart and create an order</td>
+          <td>Order, Address, Payment</td>
+          <td><b>Ordering</b></td>
+        </tr>
+      </table>
+      <div class="row">
+        <div class="box">
+          <div class="hd">Product in Catalog</div>
+          <p class="center">Id · Name · Description · ImageFile · Categories · Price</p>
+        </div>
+        <div class="callout purple" style="flex: 0 0 220px; align-self: center">Same word,<br />different model</div>
+        <div class="box teal">
+          <div class="hd">Product in Ordering</div>
+          <p class="center">Id · Name · Price</p>
+        </div>
+      </div>
+      <p class="note">A bounded context is usually one microservice, but it can be split further if parts need to scale differently.</p>
+    </section>
+
+    <!-- 13 -->
+    <section class="slide">
+      <h1>Tactical DDD: entities, value objects, aggregates</h1>
+      <table class="small">
+        <tr>
+          <th style="width: 240px"></th>
+          <th>Entity</th>
+          <th>Value object</th>
+        </tr>
+        <tr>
+          <td>Identified by</td>
+          <td>Its <b>ID</b></td>
+          <td>Its <b>values</b> (no ID)</td>
+        </tr>
+        <tr>
+          <td>Two with the same data are…</td>
+          <td>Still <b>different</b> objects</td>
+          <td><b>Equal</b></td>
+        </tr>
+        <tr>
+          <td>Changes over time?</td>
+          <td>Yes, it has a <b>lifecycle</b></td>
+          <td>No, it's <b>immutable</b>: replace it instead</td>
+        </tr>
+        <tr>
+          <td>In EShop Ordering</td>
+          <td><code>Order</code>, <code>OrderItem</code>, <code>Customer</code>, <code>Product</code></td>
+          <td><code>Address</code>, <code>Payment</code>, <code>OrderName</code>, <code>OrderId</code></td>
+        </tr>
+      </table>
+      <div class="row" style="align-items: stretch">
+        <div class="box soft" style="flex: 2">
+          <div class="hd">Order aggregate</div>
+          <div class="flow center" style="margin-bottom: 10px"><span class="chip solid">Order · aggregate root</span></div>
+          <div class="g2">
+            <div class="stack" style="gap: 6px; align-items: center">
+              <span class="cap">Value objects</span>
+              <div class="flow center" style="flex-wrap: wrap"><span class="chip teal">OrderId</span><span class="chip teal">OrderName</span><span class="chip teal">Address ×2</span><span class="chip teal">Payment</span></div>
+            </div>
+            <div class="stack" style="gap: 6px; align-items: center">
+              <span class="cap">Entities</span>
+              <div class="flow center"><span class="chip">OrderItem × N</span></div>
+              <span class="note">changed only through <code>Order.Add</code> / <code>Order.Remove</code></span>
+            </div>
+          </div>
+        </div>
+        <div class="box teal" style="flex: 1">
+          <div class="hd">Aggregate</div>
+          <p class="center">A cluster of entities and value objects treated as <b>one unit of consistency</b>. Its main entity, the <b>aggregate root</b>, is the only entry point.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 14 -->
+    <section class="slide">
+      <h1>Entities and value objects in the Ordering code</h1>
+      <div class="g2 fill">
+        <div class="stack">
+          <pre class="code sm"><span class="c">// Entity: identity + audit fields</span>
 <span class="k">public abstract class</span> Entity&lt;T&gt; : IEntity&lt;T&gt;
 {
     <span class="k">public</span> T Id { get; set; }
@@ -381,9 +974,9 @@
         _orderItems.Add(<span class="k">new</span> OrderItem(Id, productId, quantity, price));
     }
 }</pre>
-    </div>
-    <div class="stack">
-      <pre class="code sm"><span class="c">// Value object: a C# record = equality by value</span>
+        </div>
+        <div class="stack">
+          <pre class="code sm"><span class="c">// Value object: a C# record = equality by value</span>
 <span class="k">public record</span> Address
 {
     <span class="k">public string</span> FirstName { get; } = default!;
@@ -408,56 +1001,83 @@
             ? <span class="k">throw new</span> DomainException(<span class="s">"OrderId cannot be empty."</span>)
             : <span class="k">new</span> OrderId(value);
 }</pre>
-    </div>
-  </div>
-  <p class="note">Simplified from <code>Ordering.Domain</code>. Entities are created with <code>Create(...)</code>, value objects with <code>Of(...)</code>, and both validate their input.</p>
-</section>
+        </div>
+      </div>
+      <p class="note">Simplified from <code>Ordering.Domain</code>. Entities are created with <code>Create(...)</code>, value objects with <code>Of(...)</code>, and both validate their input.</p>
+    </section>
 
-<!-- 16 -->
-<section class="slide">
-  <h1>The big picture: EShop microservices</h1>
-  <div class="fill" style="display:grid;grid-template-columns:190px 50px 150px 50px 1fr 120px 150px;grid-template-rows:repeat(4,1fr);gap:10px 0;align-items:center">
-    <div class="cap" style="grid-column:1;grid-row:1;align-self:end;text-align:center">Client apps</div>
-    <div class="box" style="grid-column:1;grid-row:2/4"><div class="hd">Shopping.Web</div><p class="center note">Razor Pages + Refit</p></div>
-    <svg class="arr" style="grid-column:2;grid-row:2/4;justify-self:center"><use href="#ar"/></svg>
-    <div class="box teal" style="grid-column:3;grid-row:1/5;height:100%;display:flex;flex-direction:column;justify-content:center"><div class="hd">YARP<br>API Gateway</div><p class="center note">routing · rate limiting</p></div>
-    <svg class="arr" style="grid-column:4;grid-row:1;justify-self:center"><use href="#ar"/></svg>
-    <svg class="arr" style="grid-column:4;grid-row:2;justify-self:center"><use href="#ar"/></svg>
-    <svg class="arr" style="grid-column:4;grid-row:4;justify-self:center"><use href="#ar"/></svg>
-    <div class="box" style="grid-column:5;grid-row:1;padding:8px 14px"><div class="flow" style="justify-content:space-between"><b>Catalog</b><span class="chip grey">PostgreSQL (Marten)</span></div><span class="note">Vertical Slice</span></div>
-    <div class="box" style="grid-column:5;grid-row:2;padding:8px 14px"><div class="flow" style="justify-content:space-between"><b>Basket</b><span class="chip grey">PostgreSQL + Redis</span></div><span class="note">Vertical Slice · ↓ gRPC to Discount</span></div>
-    <div class="box" style="grid-column:5;grid-row:3;padding:8px 14px"><div class="flow" style="justify-content:space-between"><b>Discount.Grpc</b><span class="chip grey">SQLite</span></div><span class="note">internal only, no gateway route</span></div>
-    <div class="box" style="grid-column:5;grid-row:4;padding:8px 14px"><div class="flow" style="justify-content:space-between"><b>Ordering</b><span class="chip grey">SQL Server</span></div><span class="note">Clean Architecture + DDD</span></div>
-    <div style="grid-column:6;grid-row:2" class="stack"><div class="lbl">publish</div><svg class="arr" style="width:100%"><use href="#ar"/></svg></div>
-    <div style="grid-column:6;grid-row:4" class="stack"><div class="lbl">consume</div><svg class="arr" style="width:100%"><use href="#arl"/></svg></div>
-    <div class="box red" style="grid-column:7;grid-row:1/5;height:100%;display:flex;flex-direction:column;justify-content:center"><div class="hd">RabbitMQ</div><p class="center note">+ MassTransit<br>event bus</p></div>
-  </div>
-  <p class="note">Based on the course's <i>Big Picture</i> slide. The gateway routes to Catalog, Basket, and Ordering (<code>appsettings.json</code>). Discount is reached only through Basket's gRPC client.</p>
-</section>
+    <!-- 15 -->
+    <section class="slide">
+      <h1>The big picture: EShop microservices</h1>
+      <div class="fill" style="display: grid; grid-template-columns: 190px 50px 150px 50px 1fr 120px 150px; grid-template-rows: repeat(4, 1fr); gap: 10px 0; align-items: center">
+        <div class="cap" style="grid-column: 1; grid-row: 1; align-self: end; text-align: center">Client apps</div>
+        <div class="box" style="grid-column: 1; grid-row: 2/4">
+          <div class="hd">Shopping.Web</div>
+          <p class="center note">Razor Pages + Refit</p>
+        </div>
+        <svg class="arr" style="grid-column: 2; grid-row: 2/4; justify-self: center"><use href="#ar" /></svg>
+        <div class="box teal" style="grid-column: 3; grid-row: 1/5; height: 100%; display: flex; flex-direction: column; justify-content: center">
+          <div class="hd">YARP<br />API Gateway</div>
+          <p class="center note">routing · rate limiting</p>
+        </div>
+        <svg class="arr" style="grid-column: 4; grid-row: 1; justify-self: center"><use href="#ar" /></svg>
+        <svg class="arr" style="grid-column: 4; grid-row: 2; justify-self: center"><use href="#ar" /></svg>
+        <svg class="arr" style="grid-column: 4; grid-row: 4; justify-self: center"><use href="#ar" /></svg>
+        <div class="box" style="grid-column: 5; grid-row: 1; padding: 8px 14px">
+          <div class="flow" style="justify-content: space-between"><b>Catalog</b><span class="chip grey">PostgreSQL (Marten)</span></div>
+          <span class="note">Vertical Slice</span>
+        </div>
+        <div class="box" style="grid-column: 5; grid-row: 2; padding: 8px 14px">
+          <div class="flow" style="justify-content: space-between"><b>Basket</b><span class="chip grey">PostgreSQL + Redis</span></div>
+          <span class="note">Vertical Slice · ↓ gRPC to Discount</span>
+        </div>
+        <div class="box" style="grid-column: 5; grid-row: 3; padding: 8px 14px">
+          <div class="flow" style="justify-content: space-between"><b>Discount.Grpc</b><span class="chip grey">SQLite</span></div>
+          <span class="note">internal only, no gateway route</span>
+        </div>
+        <div class="box" style="grid-column: 5; grid-row: 4; padding: 8px 14px">
+          <div class="flow" style="justify-content: space-between"><b>Ordering</b><span class="chip grey">SQL Server</span></div>
+          <span class="note">Clean Architecture + DDD</span>
+        </div>
+        <div style="grid-column: 6; grid-row: 2" class="stack">
+          <div class="lbl">publish</div>
+          <svg class="arr" style="width: 100%"><use href="#ar" /></svg>
+        </div>
+        <div style="grid-column: 6; grid-row: 4" class="stack">
+          <div class="lbl">consume</div>
+          <svg class="arr" style="width: 100%"><use href="#arl" /></svg>
+        </div>
+        <div class="box red" style="grid-column: 7; grid-row: 1/5; height: 100%; display: flex; flex-direction: column; justify-content: center">
+          <div class="hd">RabbitMQ</div>
+          <p class="center note">+ MassTransit<br />event bus</p>
+        </div>
+      </div>
+      <p class="note">Based on the course's <i>Big Picture</i> slide. The gateway routes to Catalog, Basket, and Ordering (<code>appsettings.json</code>). Discount is reached only through Basket's gRPC client.</p>
+    </section>
 
-<!-- 17 -->
-<section class="slide divider">
-  <div class="part">Part 2</div>
-  <h1>Building a Microservice</h1>
-  <p class="intro">The short version: from analysis to a running container</p>
-</section>
+    <!-- 16 -->
+    <section class="slide divider">
+      <div class="part">Part 2</div>
+      <h1>Building a Microservice</h1>
+      <p class="intro">The short version: from analysis to a running container</p>
+    </section>
 
-<!-- 18 -->
-<section class="slide">
-  <h1>From analysis to a running service</h1>
-  <div class="g2 fill">
-    <div class="stack">
-      <div class="cap">The process for each service</div>
-      <div class="box" style="padding:8px 16px"><b>1 · Domain analysis</b><span class="note"> — models, use cases, API endpoints, data store</span></div>
-      <div class="box" style="padding:8px 16px"><b>2 · Technical analysis</b><span class="note"> — architecture style, patterns, libraries, folders</span></div>
-      <div class="box teal" style="padding:8px 16px"><b>3 · Develop</b><span class="note"> — ASP.NET Core 8 Minimal APIs</span></div>
-      <div class="box teal" style="padding:8px 16px"><b>4 · Containerize</b><span class="note"> — Dockerfile</span></div>
-      <div class="box teal" style="padding:8px 16px"><b>5 · Orchestrate</b><span class="note"> — docker-compose</span></div>
-      <div class="callout purple" style="font-size:16px">Program.cs always has 5 steps: builder → register services (DI) → build → configure pipeline → run</div>
-    </div>
-    <div class="stack">
-      <div class="cap">The smallest microservice (section4/TodoApi)</div>
-      <pre class="code"><span class="k">var</span> builder = WebApplication.CreateBuilder(args);
+    <!-- 17 -->
+    <section class="slide">
+      <h1>From analysis to a running service</h1>
+      <div class="g2 fill">
+        <div class="stack">
+          <div class="cap">The process for each service</div>
+          <div class="box" style="padding: 8px 16px"><b>1 · Domain analysis</b><span class="note"> — models, use cases, API endpoints, data store</span></div>
+          <div class="box" style="padding: 8px 16px"><b>2 · Technical analysis</b><span class="note"> — architecture style, patterns, libraries, folders</span></div>
+          <div class="box teal" style="padding: 8px 16px"><b>3 · Develop</b><span class="note"> — ASP.NET Core 8 Minimal APIs</span></div>
+          <div class="box teal" style="padding: 8px 16px"><b>4 · Containerize</b><span class="note"> — Dockerfile</span></div>
+          <div class="box teal" style="padding: 8px 16px"><b>5 · Orchestrate</b><span class="note"> — docker-compose</span></div>
+          <div class="callout purple" style="font-size: 16px">Program.cs always has 5 steps: builder → register services (DI) → build → configure pipeline → run</div>
+        </div>
+        <div class="stack">
+          <div class="cap">The smallest microservice (section4/TodoApi)</div>
+          <pre class="code"><span class="k">var</span> builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext&lt;TodoDb&gt;(opt =&gt;
     opt.UseInMemoryDatabase(<span class="s">"TodoList"</span>));
 <span class="k">var</span> app = builder.Build();
@@ -473,18 +1093,23 @@ app.MapPost(<span class="s">"/todoitems"</span>, <span class="k">async</span> (T
 });
 
 app.Run();</pre>
-      <p class="center" style="font-weight:600;color:var(--teal)">One process · one responsibility · its own data · an HTTP API</p>
-    </div>
-  </div>
-</section>
+          <p class="center" style="font-weight: 600; color: var(--teal)">One process · one responsibility · its own data · an HTTP API</p>
+        </div>
+      </div>
+    </section>
 
-<!-- 19 -->
-<section class="slide">
-  <h1>A real service: Catalog.API (Vertical Slice + CQRS)</h1>
-  <div class="flow center"><span class="chip">HTTP</span><svg class="arr"><use href="#ar"/></svg><span class="chip">Endpoint<small>Carter</small></span><svg class="arr"><use href="#ar"/></svg><span class="chip">MediatR<small>mediator</small></span><svg class="arr"><use href="#ar"/></svg><span class="chip">Handler<small>CQRS</small></span><svg class="arr"><use href="#ar"/></svg><span class="chip teal">Database<small>Marten</small></span></div>
-  <div class="row" style="align-items:flex-start">
-    <div class="stack" style="flex:0 0 380px">
-      <pre class="code sm">Catalog.API/
+    <!-- 18 -->
+    <section class="slide">
+      <h1>A real service: Catalog.API (Vertical Slice + CQRS)</h1>
+      <div class="flow center">
+        <span class="chip">HTTP</span><svg class="arr"><use href="#ar" /></svg><span class="chip">Endpoint<small>Carter</small></span
+        ><svg class="arr"><use href="#ar" /></svg><span class="chip">MediatR<small>mediator</small></span
+        ><svg class="arr"><use href="#ar" /></svg><span class="chip">Handler<small>CQRS</small></span
+        ><svg class="arr"><use href="#ar" /></svg><span class="chip teal">Database<small>Marten</small></span>
+      </div>
+      <div class="row" style="align-items: flex-start">
+        <div class="stack" style="flex: 0 0 380px">
+          <pre class="code sm">Catalog.API/
 ├── Models/Product.cs
 ├── Products/        <span class="c">← one folder per feature</span>
 │   ├── CreateProduct/
@@ -496,9 +1121,9 @@ app.Run();</pre>
 │   └── DeleteProduct/
 ├── Dockerfile
 └── Program.cs</pre>
-      <p style="font-size:16px"><b>Libraries:</b> Carter (endpoints), MediatR (CQRS), Marten (PostgreSQL as a document DB), FluentValidation, Mapster</p>
-    </div>
-    <pre class="code sm"><span class="c">// Endpoint (Carter module, simplified)</span>
+          <p style="font-size: 16px"><b>Libraries:</b> Carter (endpoints), MediatR (CQRS), Marten (PostgreSQL as a document DB), FluentValidation, Mapster</p>
+        </div>
+        <pre class="code sm"><span class="c">// Endpoint (Carter module, simplified)</span>
 app.MapGet(<span class="s">"/products/{id}"</span>, <span class="k">async</span> (Guid id, ISender sender) =&gt;
 {
     <span class="k">var</span> result = <span class="k">await</span> sender.Send(<span class="k">new</span> GetProductByIdQuery(id));
@@ -517,17 +1142,20 @@ app.MapGet(<span class="s">"/products/{id}"</span>, <span class="k">async</span>
         <span class="k">return new</span> GetProductByIdResult(product);
     }
 }</pre>
-  </div>
-</section>
+      </div>
+    </section>
 
-<!-- 20 -->
-<section class="slide">
-  <h1>Containerize and orchestrate</h1>
-  <div class="flow center"><span class="chip">Dockerfile</span><svg class="arr"><use href="#ar"/></svg><span class="chip">Image</span><svg class="arr"><use href="#ar"/></svg><span class="chip teal">Container</span><svg class="arr long"><use href="#ar"/></svg><span class="chip solid teal">docker-compose: 11 containers</span></div>
-  <div class="g2 fill">
-    <div class="stack">
-      <div class="cap">Multi-stage Dockerfile (generated by Visual Studio)</div>
-      <pre class="code sm"><span class="k">FROM</span> mcr.microsoft.com/dotnet/aspnet:8.0 <span class="k">AS</span> base  <span class="c"># small runtime</span>
+    <!-- 19 -->
+    <section class="slide">
+      <h1>Containerize and orchestrate</h1>
+      <div class="flow center">
+        <span class="chip">Dockerfile</span><svg class="arr"><use href="#ar" /></svg><span class="chip">Image</span><svg class="arr"><use href="#ar" /></svg><span class="chip teal">Container</span><svg class="arr long"><use href="#ar" /></svg
+        ><span class="chip solid teal">docker-compose: 11 containers</span>
+      </div>
+      <div class="g2 fill">
+        <div class="stack">
+          <div class="cap">Multi-stage Dockerfile (generated by Visual Studio)</div>
+          <pre class="code sm"><span class="k">FROM</span> mcr.microsoft.com/dotnet/aspnet:8.0 <span class="k">AS</span> base  <span class="c"># small runtime</span>
 <span class="k">EXPOSE</span> 8080
 <span class="k">EXPOSE</span> 8081
 
@@ -541,10 +1169,10 @@ app.MapGet(<span class="s">"/products/{id}"</span>, <span class="k">async</span>
 <span class="k">FROM</span> base <span class="k">AS</span> final                                 <span class="c"># only the output</span>
 <span class="k">COPY</span> --from=publish /app/publish .
 <span class="k">ENTRYPOINT</span> [<span class="s">"dotnet"</span>, <span class="s">"Catalog.API.dll"</span>]</pre>
-    </div>
-    <div class="stack">
-      <div class="cap">docker-compose runs everything together</div>
-      <pre class="code sm">services:
+        </div>
+        <div class="stack">
+          <div class="cap">docker-compose runs everything together</div>
+          <pre class="code sm">services:
   catalogdb:
     image: postgres
   catalog.api:
@@ -555,48 +1183,66 @@ app.MapGet(<span class="s">"/products/{id}"</span>, <span class="k">async</span>
     depends_on: [ catalogdb ]
     ports:
       - <span class="s">"6000:8080"</span></pre>
-      <div class="callout teal" style="font-size:16px">Inside Docker, services find each other by service name: http://catalog.api:8080</div>
-      <p class="note">EShop runs 11 containers: 5 backing services (2× PostgreSQL, Redis, SQL Server, RabbitMQ) + 6 apps.</p>
-    </div>
-  </div>
-</section>
+          <div class="callout teal" style="font-size: 16px">Inside Docker, services find each other by service name: http://catalog.api:8080</div>
+          <p class="note">EShop runs 11 containers: 5 backing services (2× PostgreSQL, Redis, SQL Server, RabbitMQ) + 6 apps.</p>
+        </div>
+      </div>
+    </section>
 
-<!-- 21 -->
-<section class="slide divider">
-  <div class="part">Part 3</div>
-  <h1>Synchronous Communication: REST &amp; gRPC</h1>
-  <p class="intro">Service-to-service calls where the caller waits for the answer</p>
-</section>
+    <!-- 20 -->
+    <section class="slide divider">
+      <div class="part">Part 3</div>
+      <h1>Synchronous Communication: REST &amp; gRPC</h1>
+      <p class="intro">Service-to-service calls where the caller waits for the answer</p>
+    </section>
 
-<!-- 22 -->
-<section class="slide big">
-  <h1>Service-to-service communication: sync vs. async</h1>
-  <p class="intro">Services must cooperate: ask for data ("what's the discount?") or trigger work ("create the order").</p>
-  <div class="g2">
-    <div class="box left">
-      <div class="hd">Synchronous</div>
-      <div class="flow center" style="margin:6px 0 12px"><span class="chip">Client</span><svg class="arr long"><use href="#ar"/></svg><span class="chip">Service</span></div>
-      <ul><li>Client sends a request and <b>waits</b> for the response</li><li>HTTP/REST, <b>gRPC</b>, GraphQL, WebSocket</li><li>Request / response</li><li><b>Temporal coupling</b>: both services must be up</li></ul>
-      <p style="margin-top:10px" class="note">EShop: Basket → Discount (gRPC) · Web → Gateway → APIs (REST)</p>
-    </div>
-    <div class="box teal left">
-      <div class="hd">Asynchronous</div>
-      <div class="flow center" style="margin:6px 0 12px"><span class="chip teal">Producer</span><svg class="arr"><use href="#ar"/></svg><span class="chip red">Broker</span><svg class="arr"><use href="#ar"/></svg><span class="chip teal">Consumer</span></div>
-      <ul><li>Client sends a message and <b>does not wait</b></li><li><b>AMQP</b> via a broker (RabbitMQ, Kafka)</li><li>One-to-one (queue), one-to-many (<b>pub/sub</b>)</li><li><b>Loose coupling</b>: the broker stores and retries</li></ul>
-      <p style="margin-top:10px" class="note">EShop: Basket → Ordering (BasketCheckout event)</p>
-    </div>
-  </div>
-  <div class="callout">Rule of thumb: REST for public APIs · gRPC for internal calls · messaging for workflows that span services</div>
-</section>
+    <!-- 21 -->
+    <section class="slide big">
+      <h1>Service-to-service communication: sync vs. async</h1>
+      <p class="intro">Services must cooperate: ask for data ("what's the discount?") or trigger work ("create the order").</p>
+      <div class="g2">
+        <div class="box left">
+          <div class="hd">Synchronous</div>
+          <div class="flow center" style="margin: 6px 0 12px">
+            <span class="chip">Client</span><svg class="arr long"><use href="#ar" /></svg><span class="chip">Service</span>
+          </div>
+          <ul>
+            <li>Client sends a request and <b>waits</b> for the response</li>
+            <li>HTTP/REST, <b>gRPC</b>, GraphQL, WebSocket</li>
+            <li>Request / response</li>
+            <li><b>Temporal coupling</b>: both services must be up</li>
+          </ul>
+          <p style="margin-top: 10px" class="note">EShop: Basket → Discount (gRPC) · Web → Gateway → APIs (REST)</p>
+        </div>
+        <div class="box teal left">
+          <div class="hd">Asynchronous</div>
+          <div class="flow center" style="margin: 6px 0 12px">
+            <span class="chip teal">Producer</span><svg class="arr"><use href="#ar" /></svg><span class="chip red">Broker</span><svg class="arr"><use href="#ar" /></svg><span class="chip teal">Consumer</span>
+          </div>
+          <ul>
+            <li>Client sends a message and <b>does not wait</b></li>
+            <li><b>AMQP</b> via a broker (RabbitMQ, Kafka)</li>
+            <li>One-to-one (queue), one-to-many (<b>pub/sub</b>)</li>
+            <li><b>Loose coupling</b>: the broker stores and retries</li>
+          </ul>
+          <p style="margin-top: 10px" class="note">EShop: Basket → Ordering (BasketCheckout event)</p>
+        </div>
+      </div>
+      <div class="callout">Rule of thumb: REST for public APIs · gRPC for internal calls · messaging for workflows that span services</div>
+    </section>
 
-<!-- 23 -->
-<section class="slide">
-  <h1>REST over HTTP</h1>
-  <p class="intro">Resource-oriented endpoints with JSON payloads, understood by every client: browser, mobile, Postman.</p>
-  <div class="flow center"><span class="chip">GET /products</span><span class="chip">POST /basket</span><span class="chip">GET /orders</span></div>
-  <div class="row" style="align-items:flex-start">
-    <div class="box left" style="flex:0 0 330px"><div class="hd">Refit</div><p>Shopping.Web consumes the APIs with <b>Refit</b>: a type-safe REST client generated from an <b>interface</b>.</p><p style="margin-top:10px">You declare the route on each method; Refit writes the HttpClient code. Call it like a normal C# method.</p></div>
-    <pre class="code"><span class="k">public interface</span> ICatalogService
+    <!-- 22 -->
+    <section class="slide">
+      <h1>REST over HTTP</h1>
+      <p class="intro">Resource-oriented endpoints with JSON payloads, understood by every client: browser, mobile, Postman.</p>
+      <div class="flow center"><span class="chip">GET /products</span><span class="chip">POST /basket</span><span class="chip">GET /orders</span></div>
+      <div class="row" style="align-items: flex-start">
+        <div class="box left" style="flex: 0 0 330px">
+          <div class="hd">Refit</div>
+          <p>Shopping.Web consumes the APIs with <b>Refit</b>: a type-safe REST client generated from an <b>interface</b>.</p>
+          <p style="margin-top: 10px">You declare the route on each method; Refit writes the HttpClient code. Call it like a normal C# method.</p>
+        </div>
+        <pre class="code"><span class="k">public interface</span> ICatalogService
 {
     [Get(<span class="s">"/catalog-service/products?pageNumber={pageNumber}&amp;pageSize={pageSize}"</span>)]
     Task&lt;GetProductsResponse&gt; GetProducts(<span class="k">int</span>? pageNumber = 1, <span class="k">int</span>? pageSize = 10);
@@ -609,18 +1255,34 @@ app.MapGet(<span class="s">"/products/{id}"</span>, <span class="k">async</span>
 builder.Services.AddRefitClient&lt;ICatalogService&gt;()
     .ConfigureHttpClient(c =&gt;
         c.BaseAddress = <span class="k">new</span> Uri(builder.Configuration[<span class="s">"ApiSettings:GatewayAddress"</span>]!));</pre>
-  </div>
-</section>
+      </div>
+    </section>
 
-<!-- 24 -->
-<section class="slide">
-  <h1>Introduction to Protobuf and gRPC</h1>
-  <div class="row fill">
-    <div class="stack" style="flex:1.05">
-      <div class="box left"><div class="hd">gRPC</div><ul><li>Open-source RPC framework from Google</li><li>Runs on <b>HTTP/2</b></li><li>Call a remote method <b>as if it were a local object</b></li></ul></div>
-      <div class="box teal left"><div class="hd">Protocol Buffers (Protobuf)</div><ul><li>Language-neutral <b>contract</b> in a <code>.proto</code> file</li><li><code>service</code> = methods, <code>message</code> = data</li><li><code>= 1, = 2…</code> are <b>field numbers</b>, not defaults</li><li>Compact <b>binary</b>: smaller and faster than JSON</li><li>.NET <b>generates</b> server base class and client</li></ul></div>
-    </div>
-    <pre class="code sm"><span class="c">// Discount.Grpc/Protos/discount.proto</span>
+    <!-- 23 -->
+    <section class="slide">
+      <h1>Introduction to Protobuf and gRPC</h1>
+      <div class="row fill">
+        <div class="stack" style="flex: 1.05">
+          <div class="box left">
+            <div class="hd">gRPC</div>
+            <ul>
+              <li>Open-source RPC framework from Google</li>
+              <li>Runs on <b>HTTP/2</b></li>
+              <li>Call a remote method <b>as if it were a local object</b></li>
+            </ul>
+          </div>
+          <div class="box teal left">
+            <div class="hd">Protocol Buffers (Protobuf)</div>
+            <ul>
+              <li>Language-neutral <b>contract</b> in a <code>.proto</code> file</li>
+              <li><code>service</code> = methods, <code>message</code> = data</li>
+              <li><code>= 1, = 2…</code> are <b>field numbers</b>, not defaults</li>
+              <li>Compact <b>binary</b>: smaller and faster than JSON</li>
+              <li>.NET <b>generates</b> server base class and client</li>
+            </ul>
+          </div>
+        </div>
+        <pre class="code sm"><span class="c">// Discount.Grpc/Protos/discount.proto</span>
 <span class="k">syntax</span> = <span class="s">"proto3"</span>;
 <span class="k">option</span> csharp_namespace = <span class="s">"Discount.Grpc"</span>;
 
@@ -645,21 +1307,24 @@ builder.Services.AddRefitClient&lt;ICatalogService&gt;()
   <span class="k">string</span> description = 3;
   <span class="k">int32</span> amount = 4;
 }</pre>
-  </div>
-</section>
+      </div>
+    </section>
 
-<!-- 25 -->
-<section class="slide">
-  <h1>gRPC in .NET: the server (Discount.Grpc)</h1>
-  <div class="flow center"><span class="chip">discount.proto</span><svg class="arr long"><use href="#ar"/></svg><span class="chip">generated<small>DiscountProtoServiceBase</small></span><svg class="arr long"><use href="#ar"/></svg><span class="chip teal">DiscountService<small>overrides the methods</small></span></div>
-  <pre class="code"><span class="c">// Program.cs</span>
+    <!-- 24 -->
+    <section class="slide">
+      <h1>gRPC in .NET: the server (Discount.Grpc)</h1>
+      <div class="flow center">
+        <span class="chip">discount.proto</span><svg class="arr long"><use href="#ar" /></svg><span class="chip">generated<small>DiscountProtoServiceBase</small></span
+        ><svg class="arr long"><use href="#ar" /></svg><span class="chip teal">DiscountService<small>overrides the methods</small></span>
+      </div>
+      <pre class="code"><span class="c">// Program.cs</span>
 builder.Services.AddGrpc();
 builder.Services.AddDbContext&lt;DiscountContext&gt;(opts =&gt;
     opts.UseSqlite(builder.Configuration.GetConnectionString(<span class="s">"Database"</span>)));
 <span class="k">var</span> app = builder.Build();
 app.UseMigration();
 app.MapGrpcService&lt;DiscountService&gt;();</pre>
-  <pre class="code"><span class="c">// Services/DiscountService.cs — inherits the generated base class (simplified)</span>
+      <pre class="code"><span class="c">// Services/DiscountService.cs — inherits the generated base class (simplified)</span>
 <span class="k">public class</span> DiscountService(DiscountContext dbContext, ILogger&lt;DiscountService&gt; logger)
     : DiscountProtoService.DiscountProtoServiceBase
 {
@@ -673,25 +1338,30 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
     }
     <span class="c">// CreateDiscount, UpdateDiscount, DeleteDiscount ...</span>
 }</pre>
-</section>
+    </section>
 
-<!-- 26 -->
-<section class="slide">
-  <h1>gRPC in .NET: the client (Basket.API calls Discount)</h1>
-  <div class="stack fill" style="gap:10px">
-    <div class="row" style="align-items:center"><div class="chip solid wrap" style="flex:0 0 200px">1 · Share the contract</div>
-      <pre class="code sm"><span class="c">&lt;!-- Basket.API.csproj — generate only the client stub from the shared .proto file --&gt;</span>
-&lt;Protobuf Include=<span class="s">"..\..\Discount\Discount.Grpc\Protos\discount.proto"</span> GrpcServices=<span class="s">"Client"</span> /&gt;</pre></div>
-    <div class="row" style="align-items:center"><div class="chip solid wrap" style="flex:0 0 200px">2 · Register the client</div>
-      <pre class="code sm">builder.Services.AddGrpcClient&lt;DiscountProtoService.DiscountProtoServiceClient&gt;(options =&gt;
+    <!-- 25 -->
+    <section class="slide">
+      <h1>gRPC in .NET: the client (Basket.API calls Discount)</h1>
+      <div class="stack fill" style="gap: 10px">
+        <div class="row" style="align-items: center">
+          <div class="chip solid wrap" style="flex: 0 0 200px">1 · Share the contract</div>
+          <pre class="code sm"><span class="c">&lt;!-- Basket.API.csproj — generate only the client stub from the shared .proto file --&gt;</span>
+&lt;Protobuf Include=<span class="s">"..\..\Discount\Discount.Grpc\Protos\discount.proto"</span> GrpcServices=<span class="s">"Client"</span> /&gt;</pre>
+        </div>
+        <div class="row" style="align-items: center">
+          <div class="chip solid wrap" style="flex: 0 0 200px">2 · Register the client</div>
+          <pre class="code sm">builder.Services.AddGrpcClient&lt;DiscountProtoService.DiscountProtoServiceClient&gt;(options =&gt;
     options.Address = <span class="k">new</span> Uri(builder.Configuration[<span class="s">"GrpcSettings:DiscountUrl"</span>]!))
   .ConfigurePrimaryHttpMessageHandler(() =&gt; <span class="k">new</span> HttpClientHandler
   {   <span class="c">// development only: accept the self-signed dev certificate</span>
       ServerCertificateCustomValidationCallback =
           HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-  });</pre></div>
-    <div class="row" style="align-items:center"><div class="chip solid teal wrap" style="flex:0 0 200px">3 · Call it like a local method</div>
-      <pre class="code sm"><span class="c">// StoreBasketHandler.cs (Handle omitted)</span>
+  });</pre>
+        </div>
+        <div class="row" style="align-items: center">
+          <div class="chip solid teal wrap" style="flex: 0 0 200px">3 · Call it like a local method</div>
+          <pre class="code sm"><span class="c">// StoreBasketHandler.cs (Handle omitted)</span>
 <span class="k">public class</span> StoreBasketCommandHandler(IBasketRepository repository,
         DiscountProtoService.DiscountProtoServiceClient discountProto)
     : ICommandHandler&lt;StoreBasketCommand, StoreBasketResult&gt;
@@ -705,141 +1375,265 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
             item.Price -= coupon.Amount;
         }
     }
-}</pre></div>
-  </div>
-</section>
-
-<!-- 27 -->
-<section class="slide">
-  <h1>When to use REST, when to use gRPC</h1>
-  <table class="small">
-    <tr><th style="width:220px"></th><th>REST</th><th>gRPC</th></tr>
-    <tr><td>Transport</td><td>HTTP/1.1 or HTTP/2</td><td>HTTP/2</td></tr>
-    <tr><td>Payload</td><td>JSON (text, human-readable)</td><td>Protobuf (binary, smaller and faster)</td></tr>
-    <tr><td>Contract</td><td>Optional (OpenAPI)</td><td><b>Required</b> (<code>.proto</code>), code is generated</td></tr>
-    <tr><td>Browser support</td><td>Native</td><td>Needs gRPC-Web or a proxy</td></tr>
-    <tr><td>Streaming</td><td>Request/response only</td><td>Client, server and <b>bidirectional</b> streaming</td></tr>
-    <tr><td>Easy to test by hand</td><td>Yes: curl, browser, Postman</td><td>Needs gRPC tooling (Postman, grpcurl)</td></tr>
-  </table>
-  <div class="g2">
-    <div class="box"><div class="hd">Choose REST</div><p class="center">Public APIs, browsers, third parties, simple CRUD</p></div>
-    <div class="box teal"><div class="hd">Choose gRPC</div><p class="center">Internal, high-volume, low-latency calls between your own services</p></div>
-  </div>
-  <div class="callout">In EShop: REST behind the gateway for the web app · gRPC for Basket → Discount, once per cart item</div>
-</section>
-
-<!-- 28 -->
-<section class="slide divider">
-  <div class="part">Part 4</div>
-  <h1>Asynchronous Communication &amp; Message Brokers</h1>
-  <p class="intro">Events, brokers, and publish/subscribe</p>
-</section>
-
-<!-- 29 -->
-<section class="slide">
-  <h1>Basic event-driven architecture</h1>
-  <div class="g2">
-    <div class="box red">
-      <div class="hd">The problem: chains of sync calls</div>
-      <div class="stack" style="gap:8px;align-items:center">
-        <div class="flow"><span class="chip">Gateway</span><svg class="arr"><use href="#ar"/></svg><span class="chip">ShoppingCart</span><svg class="arr"><use href="#ar"/></svg><span class="chip">Product · Pricing</span></div>
-        <div class="flow"><span class="chip">ShoppingCart</span><svg class="arr"><use href="#ar"/></svg><span class="chip">Order</span><svg class="arr"><use href="#ar"/></svg><span class="chip">Billing · Shipping</span></div>
+}</pre>
+        </div>
       </div>
-      <p class="center" style="margin-top:10px">Six calls for one click. Every service must be up, latencies add up, one slow service slows everyone.</p>
-    </div>
-    <div class="box teal left">
-      <div class="hd">The idea: publish events</div>
-      <ul><li>An <b>event</b> is a fact that <b>already happened</b>, in the past tense: <i>BasketCheckedOut</i>, <i>OrderCreated</i></li><li>The <b>producer</b> publishes it and moves on. It does <b>not know</b> who listens.</li><li><b>Consumers</b> react in their own time</li></ul>
-    </div>
-  </div>
-  <div class="row fill" style="align-items:center">
-    <div class="box">
-      <div class="hd">Command</div>
-      <p class="center" style="font-size:19px"><code>CreateOrder</code></p>
-      <p class="center">Tells <b>one</b> specific service what to do</p>
-    </div>
-    <div class="callout purple" style="flex:0 0 200px">vs.</div>
-    <div class="box teal">
-      <div class="hd">Event</div>
-      <p class="center" style="font-size:19px"><code>BasketCheckedOut</code></p>
-      <p class="center">Announces what happened to <b>anyone</b> interested</p>
-    </div>
-  </div>
-</section>
+    </section>
 
-<!-- 30 -->
-<section class="slide">
-  <h1>Domain events vs. integration events</h1>
-  <table class="small">
-    <tr><th style="width:170px"></th><th>Domain event</th><th>Integration event</th></tr>
-    <tr><td>Scope</td><td><b>Inside</b> one service / bounded context</td><td><b>Between</b> services</td></tr>
-    <tr><td>Transport</td><td>In-process, in-memory (MediatR)</td><td><b>Message broker</b> (RabbitMQ)</td></tr>
-    <tr><td>EShop example</td><td><code>OrderCreatedEvent</code>, raised by the <code>Order</code> aggregate</td><td><code>BasketCheckoutEvent</code>, from Basket to Ordering</td></tr>
-  </table>
-  <div class="row fill" style="align-items:center">
-    <div class="box" style="flex:0 0 190px"><div class="hd">Basket</div><p class="center note">ShoppingCart checkout</p></div>
-    <div class="stack" style="flex:0 0 190px;align-items:center;gap:4px"><span class="lbl">BasketCheckoutEvent</span><svg class="arr" style="width:170px"><use href="#ar"/></svg><span class="chip red">RabbitMQ</span><span class="note">integration event</span></div>
-    <div class="box soft">
-      <div class="hd">Ordering service</div>
-      <div class="flow center"><span class="chip">Consumer</span><svg class="arr"><use href="#ar"/></svg><span class="chip">Order.Create(...)</span><svg class="arr"><use href="#ar"/></svg><span class="chip teal">OrderCreatedEvent<small>domain event · MediatR</small></span></div>
-      <div class="flow center" style="margin-top:10px"><svg class="arr down"><use href="#ard"/></svg></div>
-      <div class="flow center"><span class="chip dashed grey">OrderCreatedIntegrationEvent<small>could be published (feature flag, off)</small></span></div>
-    </div>
-  </div>
-</section>
-
-<!-- 31 -->
-<section class="slide">
-  <h1>The role of a message broker (RabbitMQ)</h1>
-  <div class="flow center"><span class="chip teal">Producer</span><svg class="arr"><use href="#ar"/></svg><span class="chip red">Exchange</span><svg class="arr"><use href="#ar"/></svg><span class="lbl">binding</span><svg class="arr"><use href="#ar"/></svg><span class="chip red">Queue</span><svg class="arr"><use href="#ar"/></svg><span class="chip teal">Consumer</span></div>
-  <div class="g2">
-    <div class="box left">
-      <div class="hd">What the broker does</div>
-      <ul><li><b>Receives</b> messages from producers</li><li><b>Stores</b> them until consumers are ready, even if a consumer is down</li><li><b>Routes</b> them to the right queues</li><li><b>Delivers</b> and <b>retries</b></li><li>Decouples services in <b>time</b> and <b>location</b></li></ul>
-      <p style="margin-top:10px"><b>MassTransit</b>: .NET library on top of RabbitMQ that creates exchanges and queues and handles serialization and retries.</p>
-    </div>
-    <div class="stack">
-      <p><b>RabbitMQ</b>: an open-source broker that implements <b>AMQP</b>.</p>
+    <!-- 26 -->
+    <section class="slide">
+      <h1>When to use REST, when to use gRPC</h1>
       <table class="small">
-        <tr><th>Exchange</th><th>Routes messages</th></tr>
-        <tr><td>Direct</td><td>By exact routing key, to one queue</td></tr>
-        <tr><td>Fanout</td><td>To <b>all</b> bound queues (broadcast)</td></tr>
-        <tr><td>Topic</td><td>By routing-key pattern</td></tr>
-        <tr><td>Headers</td><td>By message header attributes</td></tr>
+        <tr>
+          <th style="width: 220px"></th>
+          <th>REST</th>
+          <th>gRPC</th>
+        </tr>
+        <tr>
+          <td>Transport</td>
+          <td>HTTP/1.1 or HTTP/2</td>
+          <td>HTTP/2</td>
+        </tr>
+        <tr>
+          <td>Payload</td>
+          <td>JSON (text, human-readable)</td>
+          <td>Protobuf (binary, smaller and faster)</td>
+        </tr>
+        <tr>
+          <td>Contract</td>
+          <td>Optional (OpenAPI)</td>
+          <td><b>Required</b> (<code>.proto</code>), code is generated</td>
+        </tr>
+        <tr>
+          <td>Browser support</td>
+          <td>Native</td>
+          <td>Needs gRPC-Web or a proxy</td>
+        </tr>
+        <tr>
+          <td>Streaming</td>
+          <td>Request/response only</td>
+          <td>Client, server and <b>bidirectional</b> streaming</td>
+        </tr>
+        <tr>
+          <td>Easy to test by hand</td>
+          <td>Yes: curl, browser, Postman</td>
+          <td>Needs gRPC tooling (Postman, grpcurl)</td>
+        </tr>
       </table>
-      <p class="note">Similar brokers: Apache Kafka, Azure Service Bus, ActiveMQ</p>
-    </div>
-  </div>
-</section>
+      <div class="g2">
+        <div class="box">
+          <div class="hd">Choose REST</div>
+          <p class="center">Public APIs, browsers, third parties, simple CRUD</p>
+        </div>
+        <div class="box teal">
+          <div class="hd">Choose gRPC</div>
+          <p class="center">Internal, high-volume, low-latency calls between your own services</p>
+        </div>
+      </div>
+      <div class="callout">In EShop: REST behind the gateway for the web app · gRPC for Basket → Discount, once per cart item</div>
+    </section>
 
-<!-- 32 -->
-<section class="slide">
-  <h1>Basic pub/sub pattern</h1>
-  <div class="row" style="align-items:center">
-    <div class="box" style="flex:0 0 200px"><div class="hd">Basket</div><p class="center note">publisher</p></div>
-    <div class="stack" style="flex:0 0 170px;align-items:center;gap:2px"><span class="lbl">publish once</span><svg class="arr" style="width:150px"><use href="#ar"/></svg></div>
-    <div class="box red" style="flex:0 0 180px"><div class="hd">Exchange</div><p class="center note">fanout</p></div>
-    <div class="stack" style="flex:1;gap:8px">
-      <div class="flow"><svg class="arr"><use href="#ar"/></svg><span class="chip red">queue</span><svg class="arr"><use href="#ar"/></svg><span class="chip teal">Ordering<small>creates the order · in EShop</small></span></div>
-      <div class="flow"><svg class="arr"><use href="#ar"/></svg><span class="chip red dashed">queue</span><svg class="arr"><use href="#ar"/></svg><span class="chip grey dashed">Notification<small>sends an email · could be added</small></span></div>
-      <div class="flow"><svg class="arr"><use href="#ar"/></svg><span class="chip red dashed">queue</span><svg class="arr"><use href="#ar"/></svg><span class="chip grey dashed">Analytics<small>records the sale · could be added</small></span></div>
-    </div>
-  </div>
-  <div class="g2">
-    <div class="box teal left"><div class="hd">How it works</div>
-      <ul><li>The publisher sends <b>one</b> message to an exchange (a <i>topic</i>)</li><li>The broker <b>fans out</b> a copy to every subscriber's queue</li><li>Subscribers work <b>in parallel and independently</b></li><li><b>Add a subscriber without changing the publisher</b></li><li>A queue gives each message to <b>one</b> consumer; pub/sub gives <b>every</b> subscriber a copy</li></ul></div>
-    <div class="box red left"><div class="hd">Watch out for</div>
-      <ul><li><b>At-least-once delivery</b>: consumers must be <b>idempotent</b></li><li><b>No guaranteed order</b> of messages</li><li>The broker is critical: run it <b>highly available</b></li><li>Harder to <b>debug and trace</b></li><li><b>Eventual consistency</b>: the order appears a moment later</li></ul></div>
-  </div>
-</section>
+    <!-- 27 -->
+    <section class="slide divider">
+      <div class="part">Part 4</div>
+      <h1>Asynchronous Communication &amp; Message Brokers</h1>
+      <p class="intro">Events, brokers, and publish/subscribe</p>
+    </section>
 
-<!-- 33 -->
-<section class="slide">
-  <h1>Messaging setup: the shared BuildingBlocks.Messaging library</h1>
-  <div class="g2 fill">
-    <div class="stack">
-      <div class="cap">The event contract (shared by publisher and consumer)</div>
-      <pre class="code"><span class="k">public record</span> IntegrationEvent
+    <!-- 28 -->
+    <section class="slide">
+      <h1>Basic event-driven architecture</h1>
+      <div class="g2">
+        <div class="box red">
+          <div class="hd">The problem: chains of sync calls</div>
+          <div class="stack" style="gap: 8px; align-items: center">
+            <div class="flow">
+              <span class="chip">Gateway</span><svg class="arr"><use href="#ar" /></svg><span class="chip">ShoppingCart</span><svg class="arr"><use href="#ar" /></svg><span class="chip">Product · Pricing</span>
+            </div>
+            <div class="flow">
+              <span class="chip">ShoppingCart</span><svg class="arr"><use href="#ar" /></svg><span class="chip">Order</span><svg class="arr"><use href="#ar" /></svg><span class="chip">Billing · Shipping</span>
+            </div>
+          </div>
+          <p class="center" style="margin-top: 10px">Six calls for one click. Every service must be up, latencies add up, one slow service slows everyone.</p>
+        </div>
+        <div class="box teal left">
+          <div class="hd">The idea: publish events</div>
+          <ul>
+            <li>An <b>event</b> is a fact that <b>already happened</b>, in the past tense: <i>BasketCheckedOut</i>, <i>OrderCreated</i></li>
+            <li>The <b>producer</b> publishes it and moves on. It does <b>not know</b> who listens.</li>
+            <li><b>Consumers</b> react in their own time</li>
+          </ul>
+        </div>
+      </div>
+      <div class="row fill" style="align-items: center">
+        <div class="box">
+          <div class="hd">Command</div>
+          <p class="center" style="font-size: 19px"><code>CreateOrder</code></p>
+          <p class="center">Tells <b>one</b> specific service what to do</p>
+        </div>
+        <div class="callout purple" style="flex: 0 0 200px">vs.</div>
+        <div class="box teal">
+          <div class="hd">Event</div>
+          <p class="center" style="font-size: 19px"><code>BasketCheckedOut</code></p>
+          <p class="center">Announces what happened to <b>anyone</b> interested</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 29 -->
+    <section class="slide">
+      <h1>Domain events vs. integration events</h1>
+      <table class="small">
+        <tr>
+          <th style="width: 170px"></th>
+          <th>Domain event</th>
+          <th>Integration event</th>
+        </tr>
+        <tr>
+          <td>Scope</td>
+          <td><b>Inside</b> one service / bounded context</td>
+          <td><b>Between</b> services</td>
+        </tr>
+        <tr>
+          <td>Transport</td>
+          <td>In-process, in-memory (MediatR)</td>
+          <td><b>Message broker</b> (RabbitMQ)</td>
+        </tr>
+        <tr>
+          <td>EShop example</td>
+          <td><code>OrderCreatedEvent</code>, raised by the <code>Order</code> aggregate</td>
+          <td><code>BasketCheckoutEvent</code>, from Basket to Ordering</td>
+        </tr>
+      </table>
+      <div class="row fill" style="align-items: center">
+        <div class="box" style="flex: 0 0 190px">
+          <div class="hd">Basket</div>
+          <p class="center note">ShoppingCart checkout</p>
+        </div>
+        <div class="stack" style="flex: 0 0 190px; align-items: center; gap: 4px">
+          <span class="lbl">BasketCheckoutEvent</span><svg class="arr" style="width: 170px"><use href="#ar" /></svg><span class="chip red">RabbitMQ</span><span class="note">integration event</span>
+        </div>
+        <div class="box soft">
+          <div class="hd">Ordering service</div>
+          <div class="flow center">
+            <span class="chip">Consumer</span><svg class="arr"><use href="#ar" /></svg><span class="chip">Order.Create(...)</span><svg class="arr"><use href="#ar" /></svg><span class="chip teal">OrderCreatedEvent<small>domain event · MediatR</small></span>
+          </div>
+          <div class="flow center" style="margin-top: 10px">
+            <svg class="arr down"><use href="#ard" /></svg>
+          </div>
+          <div class="flow center">
+            <span class="chip dashed grey">OrderCreatedIntegrationEvent<small>could be published (feature flag, off)</small></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 30 -->
+    <section class="slide">
+      <h1>The role of a message broker (RabbitMQ)</h1>
+      <div class="flow center">
+        <span class="chip teal">Producer</span><svg class="arr"><use href="#ar" /></svg><span class="chip red">Exchange</span><svg class="arr"><use href="#ar" /></svg><span class="lbl">binding</span><svg class="arr"><use href="#ar" /></svg><span class="chip red">Queue</span
+        ><svg class="arr"><use href="#ar" /></svg><span class="chip teal">Consumer</span>
+      </div>
+      <div class="g2">
+        <div class="box left">
+          <div class="hd">What the broker does</div>
+          <ul>
+            <li><b>Receives</b> messages from producers</li>
+            <li><b>Stores</b> them until consumers are ready, even if a consumer is down</li>
+            <li><b>Routes</b> them to the right queues</li>
+            <li><b>Delivers</b> and <b>retries</b></li>
+            <li>Decouples services in <b>time</b> and <b>location</b></li>
+          </ul>
+          <p style="margin-top: 10px"><b>MassTransit</b>: .NET library on top of RabbitMQ that creates exchanges and queues and handles serialization and retries.</p>
+        </div>
+        <div class="stack">
+          <p><b>RabbitMQ</b>: an open-source broker that implements <b>AMQP</b>.</p>
+          <table class="small">
+            <tr>
+              <th>Exchange</th>
+              <th>Routes messages</th>
+            </tr>
+            <tr>
+              <td>Direct</td>
+              <td>By exact routing key, to one queue</td>
+            </tr>
+            <tr>
+              <td>Fanout</td>
+              <td>To <b>all</b> bound queues (broadcast)</td>
+            </tr>
+            <tr>
+              <td>Topic</td>
+              <td>By routing-key pattern</td>
+            </tr>
+            <tr>
+              <td>Headers</td>
+              <td>By message header attributes</td>
+            </tr>
+          </table>
+          <p class="note">Similar brokers: Apache Kafka, Azure Service Bus, ActiveMQ</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 31 -->
+    <section class="slide">
+      <h1>Basic pub/sub pattern</h1>
+      <div class="row" style="align-items: center">
+        <div class="box" style="flex: 0 0 200px">
+          <div class="hd">Basket</div>
+          <p class="center note">publisher</p>
+        </div>
+        <div class="stack" style="flex: 0 0 170px; align-items: center; gap: 2px">
+          <span class="lbl">publish once</span><svg class="arr" style="width: 150px"><use href="#ar" /></svg>
+        </div>
+        <div class="box red" style="flex: 0 0 180px">
+          <div class="hd">Exchange</div>
+          <p class="center note">fanout</p>
+        </div>
+        <div class="stack" style="flex: 1; gap: 8px">
+          <div class="flow">
+            <svg class="arr"><use href="#ar" /></svg><span class="chip red">queue</span><svg class="arr"><use href="#ar" /></svg><span class="chip teal">Ordering<small>creates the order · in EShop</small></span>
+          </div>
+          <div class="flow">
+            <svg class="arr"><use href="#ar" /></svg><span class="chip red dashed">queue</span><svg class="arr"><use href="#ar" /></svg><span class="chip grey dashed">Notification<small>sends an email · could be added</small></span>
+          </div>
+          <div class="flow">
+            <svg class="arr"><use href="#ar" /></svg><span class="chip red dashed">queue</span><svg class="arr"><use href="#ar" /></svg><span class="chip grey dashed">Analytics<small>records the sale · could be added</small></span>
+          </div>
+        </div>
+      </div>
+      <div class="g2">
+        <div class="box teal left">
+          <div class="hd">How it works</div>
+          <ul>
+            <li>The publisher sends <b>one</b> message to an exchange (a <i>topic</i>)</li>
+            <li>The broker <b>fans out</b> a copy to every subscriber's queue</li>
+            <li>Subscribers work <b>in parallel and independently</b></li>
+            <li><b>Add a subscriber without changing the publisher</b></li>
+            <li>A queue gives each message to <b>one</b> consumer; pub/sub gives <b>every</b> subscriber a copy</li>
+          </ul>
+        </div>
+        <div class="box red left">
+          <div class="hd">Watch out for</div>
+          <ul>
+            <li><b>At-least-once delivery</b>: consumers must be <b>idempotent</b></li>
+            <li><b>No guaranteed order</b> of messages</li>
+            <li>The broker is critical: run it <b>highly available</b></li>
+            <li>Harder to <b>debug and trace</b></li>
+            <li><b>Eventual consistency</b>: the order appears a moment later</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 32 -->
+    <section class="slide">
+      <h1>Messaging setup: the shared BuildingBlocks.Messaging library</h1>
+      <div class="g2 fill">
+        <div class="stack">
+          <div class="cap">The event contract (shared by publisher and consumer)</div>
+          <pre class="code"><span class="k">public record</span> IntegrationEvent
 {
     <span class="k">public</span> Guid Id =&gt; Guid.NewGuid();
     <span class="k">public</span> DateTime OccurredOn =&gt; DateTime.Now;
@@ -852,11 +1646,11 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
     <span class="k">public decimal</span> TotalPrice { get; set; } = default!;
     <span class="c">// address + payment fields ...</span>
 }</pre>
-      <div class="callout teal" style="font-size:16px">Basket and Ordering both reference this one class</div>
-    </div>
-    <div class="stack">
-      <div class="cap">One extension method registers MassTransit + RabbitMQ</div>
-      <pre class="code sm"><span class="k">public static</span> IServiceCollection AddMessageBroker(
+          <div class="callout teal" style="font-size: 16px">Basket and Ordering both reference this one class</div>
+        </div>
+        <div class="stack">
+          <div class="cap">One extension method registers MassTransit + RabbitMQ</div>
+          <pre class="code sm"><span class="k">public static</span> IServiceCollection AddMessageBroker(
     <span class="k">this</span> IServiceCollection services,
     IConfiguration configuration, Assembly? assembly = <span class="k">null</span>)
 {
@@ -879,17 +1673,17 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
   });
   <span class="k">return</span> services;
 }</pre>
-    </div>
-  </div>
-</section>
+        </div>
+      </div>
+    </section>
 
-<!-- 34 -->
-<section class="slide">
-  <h1>Publish (Basket) → consume (Ordering)</h1>
-  <div class="row fill" style="align-items:stretch">
-    <div class="stack">
-      <div class="cap">Publisher: Basket.API</div>
-      <pre class="code sm"><span class="c">// Program.cs</span>
+    <!-- 33 -->
+    <section class="slide">
+      <h1>Publish (Basket) → consume (Ordering)</h1>
+      <div class="row fill" style="align-items: stretch">
+        <div class="stack">
+          <div class="cap">Publisher: Basket.API</div>
+          <pre class="code sm"><span class="c">// Program.cs</span>
 builder.Services.AddMessageBroker(builder.Configuration);
 
 <span class="c">// CheckoutBasketHandler.cs (simplified)</span>
@@ -910,11 +1704,13 @@ builder.Services.AddMessageBroker(builder.Configuration);
     <span class="k">return new</span>(<span class="k">true</span>);
   }
 }</pre>
-    </div>
-    <div class="stack" style="flex:0 0 110px;justify-content:center;align-items:center;gap:4px"><span class="lbl">BasketCheckout<br>Event</span><svg class="arr" style="width:90px"><use href="#ar"/></svg><span class="chip red">RabbitMQ</span></div>
-    <div class="stack">
-      <div class="cap">Consumer: Ordering.Application</div>
-      <pre class="code sm"><span class="c">// DependencyInjection.cs — also scans for consumers</span>
+        </div>
+        <div class="stack" style="flex: 0 0 110px; justify-content: center; align-items: center; gap: 4px">
+          <span class="lbl">BasketCheckout<br />Event</span><svg class="arr" style="width: 90px"><use href="#ar" /></svg><span class="chip red">RabbitMQ</span>
+        </div>
+        <div class="stack">
+          <div class="cap">Consumer: Ordering.Application</div>
+          <pre class="code sm"><span class="c">// DependencyInjection.cs — also scans for consumers</span>
 services.AddMessageBroker(configuration,
     Assembly.GetExecutingAssembly());
 
@@ -934,68 +1730,102 @@ services.AddMessageBroker(configuration,
     <span class="k">await</span> sender.Send(command);   <span class="c">// creates the order</span>
   }
 }</pre>
-    </div>
-  </div>
-  <div class="callout">Basket has no idea Ordering exists. It only publishes an event.</div>
-</section>
-
-<!-- 35 -->
-<section class="slide divider">
-  <div class="part">Part 5</div>
-  <h1>API Gateway &amp; BFF</h1>
-  <p class="intro">One front door for all clients, or one per kind of client</p>
-</section>
-
-<!-- 36 -->
-<section class="slide">
-  <h1>The role of an API Gateway</h1>
-  <p class="intro">Without a gateway, every client must know every service's address, and every service handles auth, SSL and rate limiting itself.</p>
-  <div class="row fill" style="align-items:stretch">
-    <div class="stack" style="flex:1.2">
-      <div class="box"><div class="hd">1 · Gateway routing</div><p class="center">Route each request to the right internal service (layer 7). Move a service: only gateway config changes.</p></div>
-      <div class="box"><div class="hd">2 · Gateway aggregation</div><p class="center">Combine several service calls into one response</p></div>
-      <div class="box"><div class="hd">3 · Gateway offloading</div><p class="center">Handle cross-cutting concerns in one place</p></div>
-      <div class="callout" style="font-size:17px">Risk: a single gateway can become a bottleneck or single point of failure</div>
-    </div>
-    <div class="box teal" style="flex:1">
-      <div class="hd">Request flow through a gateway</div>
-      <div class="stack" style="align-items:center;gap:4px">
-        <span class="chip">Client</span><svg class="arr down"><use href="#ard"/></svg>
-        <div class="box" style="width:100%;padding:8px 12px"><p class="center" style="line-height:1.7">Request validation<br>IP allowlisting<br>Authentication / authorization<br>Rate limiting<br>Service discovery<br>Protocol conversion</p></div>
-        <svg class="arr down"><use href="#ard"/></svg><span class="chip teal">Customer · Basket · Discount · Order</span>
+        </div>
       </div>
-    </div>
-  </div>
-</section>
+      <div class="callout">Basket has no idea Ordering exists. It only publishes an event.</div>
+    </section>
 
-<!-- 37 -->
-<section class="slide big">
-  <h1>Pattern: Backends for Frontends (BFF)</h1>
-  <p class="intro">One gateway per type of client, instead of one gateway for everyone.</p>
-  <div class="row" style="align-items:center">
-    <div class="stack" style="flex:0 0 170px"><span class="chip">Web app</span><span class="chip">Mobile app</span><span class="chip">Desktop app</span></div>
-    <div class="stack" style="flex:0 0 70px;gap:28px"><svg class="arr"><use href="#ar"/></svg><svg class="arr"><use href="#ar"/></svg><svg class="arr"><use href="#ar"/></svg></div>
-    <div class="stack" style="flex:0 0 240px"><span class="chip teal">Web BFF gateway</span><span class="chip teal">Mobile BFF gateway</span><span class="chip teal">Desktop BFF gateway</span></div>
-    <div class="stack" style="flex:0 0 80px;align-items:center"><svg class="arr" style="width:70px"><use href="#ar"/></svg></div>
-    <div class="box"><div class="hd">Microservices</div><p class="center">Customer · ShoppingCart<br>Discount · Order</p></div>
-  </div>
-  <div class="g2">
-    <div class="box left"><div class="hd">Why</div>
-      <ul><li>Each BFF returns <b>exactly what its frontend needs</b>: a phone screen needs less data than a desktop page</li><li>Avoids one big gateway full of client-specific logic</li><li>Each frontend team can <b>own and change its own BFF</b></li></ul></div>
-    <div class="box teal left"><div class="hd">In EShop</div>
-      <p>EShop has <b>one</b> client (Shopping.Web), so one gateway is enough.</p><p style="margin-top:10px">Add BFFs when a second kind of client, such as a mobile app, arrives.</p></div>
-  </div>
-</section>
+    <!-- 34 -->
+    <section class="slide divider">
+      <div class="part">Part 5</div>
+      <h1>API Gateway &amp; BFF</h1>
+      <p class="intro">One front door for all clients, or one per kind of client</p>
+    </section>
 
-<!-- 38 -->
-<section class="slide">
-  <h1>Introduction to YARP (Yet Another Reverse Proxy)</h1>
-  <div class="row fill">
-    <div class="stack">
-      <div class="box left"><div class="hd">YARP</div>
-        <ul><li><b>Reverse proxy</b> library from Microsoft, built on ASP.NET Core</li><li><b>Routes</b> (what to match) and <b>clusters</b> (where to send)</li><li>HTTP/2, <b>gRPC</b>, WebSockets, load balancing, health checks, transforms</li><li>Plugs into ASP.NET Core middleware: <b>rate limiting</b>, auth</li></ul></div>
-      <div class="cap">The whole EShop gateway (YarpApiGateway/Program.cs)</div>
-      <pre class="code sm">builder.Services.AddReverseProxy()
+    <!-- 35 -->
+    <section class="slide">
+      <h1>The role of an API Gateway</h1>
+      <p class="intro">Without a gateway, every client must know every service's address, and every service handles auth, SSL and rate limiting itself.</p>
+      <div class="row fill" style="align-items: stretch">
+        <div class="stack" style="flex: 1.2">
+          <div class="box">
+            <div class="hd">1 · Gateway routing</div>
+            <p class="center">Route each request to the right internal service (layer 7). Move a service: only gateway config changes.</p>
+          </div>
+          <div class="box">
+            <div class="hd">2 · Gateway aggregation</div>
+            <p class="center">Combine several service calls into one response</p>
+          </div>
+          <div class="box">
+            <div class="hd">3 · Gateway offloading</div>
+            <p class="center">Handle cross-cutting concerns in one place</p>
+          </div>
+          <div class="callout" style="font-size: 17px">Risk: a single gateway can become a bottleneck or single point of failure</div>
+        </div>
+        <div class="box teal" style="flex: 1">
+          <div class="hd">Request flow through a gateway</div>
+          <div class="stack" style="align-items: center; gap: 4px">
+            <span class="chip">Client</span><svg class="arr down"><use href="#ard" /></svg>
+            <div class="box" style="width: 100%; padding: 8px 12px">
+              <p class="center" style="line-height: 1.7">Request validation<br />IP allowlisting<br />Authentication / authorization<br />Rate limiting<br />Service discovery<br />Protocol conversion</p>
+            </div>
+            <svg class="arr down"><use href="#ard" /></svg><span class="chip teal">Customer · Basket · Discount · Order</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 36 -->
+    <section class="slide big">
+      <h1>Pattern: Backends for Frontends (BFF)</h1>
+      <p class="intro">One gateway per type of client, instead of one gateway for everyone.</p>
+      <div class="row" style="align-items: center">
+        <div class="stack" style="flex: 0 0 170px"><span class="chip">Web app</span><span class="chip">Mobile app</span><span class="chip">Desktop app</span></div>
+        <div class="stack" style="flex: 0 0 70px; gap: 28px">
+          <svg class="arr"><use href="#ar" /></svg><svg class="arr"><use href="#ar" /></svg><svg class="arr"><use href="#ar" /></svg>
+        </div>
+        <div class="stack" style="flex: 0 0 240px"><span class="chip teal">Web BFF gateway</span><span class="chip teal">Mobile BFF gateway</span><span class="chip teal">Desktop BFF gateway</span></div>
+        <div class="stack" style="flex: 0 0 80px; align-items: center">
+          <svg class="arr" style="width: 70px"><use href="#ar" /></svg>
+        </div>
+        <div class="box">
+          <div class="hd">Microservices</div>
+          <p class="center">Customer · ShoppingCart<br />Discount · Order</p>
+        </div>
+      </div>
+      <div class="g2">
+        <div class="box left">
+          <div class="hd">Why</div>
+          <ul>
+            <li>Each BFF returns <b>exactly what its frontend needs</b>: a phone screen needs less data than a desktop page</li>
+            <li>Avoids one big gateway full of client-specific logic</li>
+            <li>Each frontend team can <b>own and change its own BFF</b></li>
+          </ul>
+        </div>
+        <div class="box teal left">
+          <div class="hd">In EShop</div>
+          <p>EShop has <b>one</b> client (Shopping.Web), so one gateway is enough.</p>
+          <p style="margin-top: 10px">Add BFFs when a second kind of client, such as a mobile app, arrives.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 37 -->
+    <section class="slide">
+      <h1>Introduction to YARP (Yet Another Reverse Proxy)</h1>
+      <div class="row fill">
+        <div class="stack">
+          <div class="box left">
+            <div class="hd">YARP</div>
+            <ul>
+              <li><b>Reverse proxy</b> library from Microsoft, built on ASP.NET Core</li>
+              <li><b>Routes</b> (what to match) and <b>clusters</b> (where to send)</li>
+              <li>HTTP/2, <b>gRPC</b>, WebSockets, load balancing, health checks, transforms</li>
+              <li>Plugs into ASP.NET Core middleware: <b>rate limiting</b>, auth</li>
+            </ul>
+          </div>
+          <div class="cap">The whole EShop gateway (YarpApiGateway/Program.cs)</div>
+          <pre class="code sm">builder.Services.AddReverseProxy()
   .LoadFromConfig(builder.Configuration.GetSection(<span class="s">"ReverseProxy"</span>));
 builder.Services.AddRateLimiter(o =&gt;
   o.AddFixedWindowLimiter(<span class="s">"fixed"</span>, opt =&gt; {
@@ -1004,9 +1834,9 @@ builder.Services.AddRateLimiter(o =&gt;
 
 app.UseRateLimiter();
 app.MapReverseProxy();</pre>
-    </div>
-    <div class="stack">
-      <pre class="code sm"><span class="s">"ReverseProxy"</span>: {
+        </div>
+        <div class="stack">
+          <pre class="code sm"><span class="s">"ReverseProxy"</span>: {
   <span class="s">"Routes"</span>: {
     <span class="s">"catalog-route"</span>: {
       <span class="s">"ClusterId"</span>: <span class="s">"catalog-cluster"</span>,
@@ -1028,169 +1858,331 @@ app.MapReverseProxy();</pre>
     <span class="s">"ordering-cluster"</span>: { <span class="s">"..."</span>: <span class="s">"http://ordering.api:8080"</span> }
   }
 }</pre>
-      <div class="flow center"><span class="chip">GET /catalog-service/products</span><svg class="arr"><use href="#ar"/></svg><span class="chip teal">catalog.api:8080/products</span></div>
-    </div>
-  </div>
-</section>
+          <div class="flow center">
+            <span class="chip">GET /catalog-service/products</span><svg class="arr"><use href="#ar" /></svg><span class="chip teal">catalog.api:8080/products</span>
+          </div>
+        </div>
+      </div>
+    </section>
 
-<!-- 39 -->
-<section class="slide">
-  <h1>Introduction to Ocelot, and YARP vs. Ocelot</h1>
-  <p class="intro">Ocelot is an open-source API gateway library for .NET, configured with an <code>ocelot.json</code> file.</p>
-  <table class="small">
-    <tr><th style="width:170px"></th><th>YARP</th><th>Ocelot</th></tr>
-    <tr><td>From</td><td>Microsoft</td><td>Open-source community</td></tr>
-    <tr><td>What it is</td><td>Reverse-proxy <b>toolkit</b>, highly customizable in C#</td><td>Ready-made <b>API gateway</b></td></tr>
-    <tr><td>Config</td><td>Routes + clusters (<code>appsettings.json</code> or code)</td><td>Upstream/downstream routes (<code>ocelot.json</code>)</td></tr>
-    <tr><td>Built in</td><td>Routing, load balancing, health checks, transforms</td><td>Routing, rate limiting, auth, caching, request aggregation</td></tr>
-    <tr><td>Extra features</td><td>From ASP.NET Core middleware</td><td>Mostly through Ocelot's own config</td></tr>
-    <tr><td>In EShop</td><td style="color:var(--teal);font-weight:700">✓ Used</td><td style="color:var(--red);font-weight:700">✗ Not used</td></tr>
-  </table>
-  <div class="g2">
-    <pre class="code sm">{ <span class="s">"Routes"</span>: [ {
+    <!-- 38 -->
+    <section class="slide">
+      <h1>Introduction to Ocelot, and YARP vs. Ocelot</h1>
+      <p class="intro">Ocelot is an open-source API gateway library for .NET, configured with an <code>ocelot.json</code> file.</p>
+      <table class="small">
+        <tr>
+          <th style="width: 170px"></th>
+          <th>YARP</th>
+          <th>Ocelot</th>
+        </tr>
+        <tr>
+          <td>From</td>
+          <td>Microsoft</td>
+          <td>Open-source community</td>
+        </tr>
+        <tr>
+          <td>What it is</td>
+          <td>Reverse-proxy <b>toolkit</b>, highly customizable in C#</td>
+          <td>Ready-made <b>API gateway</b></td>
+        </tr>
+        <tr>
+          <td>Config</td>
+          <td>Routes + clusters (<code>appsettings.json</code> or code)</td>
+          <td>Upstream/downstream routes (<code>ocelot.json</code>)</td>
+        </tr>
+        <tr>
+          <td>Built in</td>
+          <td>Routing, load balancing, health checks, transforms</td>
+          <td>Routing, rate limiting, auth, caching, request aggregation</td>
+        </tr>
+        <tr>
+          <td>Extra features</td>
+          <td>From ASP.NET Core middleware</td>
+          <td>Mostly through Ocelot's own config</td>
+        </tr>
+        <tr>
+          <td>In EShop</td>
+          <td style="color: var(--teal); font-weight: 700">✓ Used</td>
+          <td style="color: var(--red); font-weight: 700">✗ Not used</td>
+        </tr>
+      </table>
+      <div class="g2">
+        <pre class="code sm">{ <span class="s">"Routes"</span>: [ {
     <span class="s">"UpstreamPathTemplate"</span>: <span class="s">"/catalog-service/{everything}"</span>,
     <span class="s">"UpstreamHttpMethod"</span>: [ <span class="s">"Get"</span>, <span class="s">"Post"</span>, <span class="s">"Put"</span>, <span class="s">"Delete"</span> ],
     <span class="s">"DownstreamPathTemplate"</span>: <span class="s">"/{everything}"</span>,
     <span class="s">"DownstreamScheme"</span>: <span class="s">"http"</span>,
     <span class="s">"DownstreamHostAndPorts"</span>: [ { <span class="s">"Host"</span>: <span class="s">"catalog.api"</span>, <span class="s">"Port"</span>: 8080 } ]
 } ] }</pre>
-    <div class="stack">
-      <pre class="code sm">builder.Configuration.AddJsonFile(<span class="s">"ocelot.json"</span>);
+        <div class="stack">
+          <pre class="code sm">builder.Configuration.AddJsonFile(<span class="s">"ocelot.json"</span>);
 builder.Services.AddOcelot(builder.Configuration);
 <span class="k">var</span> app = builder.Build();
 <span class="k">await</span> app.UseOcelot();
 app.Run();</pre>
-      <p class="note">Illustration only: the same Catalog route, written for Ocelot.</p>
+          <p class="note">Illustration only: the same Catalog route, written for Ocelot.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 39 -->
+    <section class="slide">
+      <h1>Choosing an invocation method</h1>
+      <table>
+        <tr>
+          <th>Method</th>
+          <th>Style</th>
+          <th>Best for</th>
+          <th>EShop usage</th>
+        </tr>
+        <tr>
+          <td>REST / HTTP</td>
+          <td>Sync, JSON</td>
+          <td>Public and client-facing APIs</td>
+          <td>Web → Gateway → Catalog, Basket, Ordering</td>
+        </tr>
+        <tr>
+          <td>gRPC</td>
+          <td>Sync, binary, HTTP/2</td>
+          <td>Fast internal calls with strict contracts</td>
+          <td>Basket → Discount (price calculation)</td>
+        </tr>
+        <tr>
+          <td>Messaging (RabbitMQ)</td>
+          <td>Async, events</td>
+          <td>Cross-service workflows, decoupling, fan-out</td>
+          <td>Basket → Ordering (checkout)</td>
+        </tr>
+        <tr>
+          <td>API Gateway (YARP)</td>
+          <td>Sync, reverse proxy</td>
+          <td>Single entry point, rate limiting, security</td>
+          <td>Shopping.Web → YarpApiGateway</td>
+        </tr>
+      </table>
+      <div class="callout">Real systems mix these methods. Keep sync call chains short; use messaging for anything that doesn't need an immediate answer.</div>
+      <div class="g2">
+        <div class="box">
+          <div class="hd">Need the answer now?</div>
+          <p class="center">Basket needs the discount to show a price → <b>synchronous</b></p>
+        </div>
+        <div class="box teal">
+          <div class="hd">Don't need it now?</div>
+          <p class="center">Basket doesn't need the order number to finish checkout → <b>event</b></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 40 -->
+    <section class="slide">
+      <h1>Demo: gRPC call, Basket → Discount</h1>
+      <p class="intro">Sections 10–12 only. Runs on a laptop with the .NET 8 SDK: no Docker, no database server.</p>
+      <div class="flow center" style="margin-top: 6px">
+        <span class="chip grey">curl / demo.http</span>
+        <div class="stack" style="gap: 2px; align-items: center">
+          <span class="lbl">REST · JSON</span><svg class="arr long"><use href="#ar" /></svg>
+        </div>
+        <div class="box" style="flex: 0 0 220px; padding: 10px 14px">
+          <div class="hd">Basket.API</div>
+          <p class="center note">:5001 · gRPC client<br />in-memory carts</p>
+        </div>
+        <div class="stack" style="gap: 2px; align-items: center">
+          <span class="lbl">gRPC · HTTP/2 + Protobuf</span><svg class="arr" style="width: 170px"><use href="#ar" /></svg><span class="lbl">GetDiscount · CreateDiscount</span>
+        </div>
+        <div class="box teal" style="flex: 0 0 220px; padding: 10px 14px">
+          <div class="hd">Discount.Grpc</div>
+          <p class="center note">:5002 · gRPC server<br />EF Core</p>
+        </div>
+        <svg class="arr"><use href="#ar" /></svg>
+        <span class="chip grey">SQLite</span>
+      </div>
+      <div class="g2">
+        <div class="stack">
+          <div class="cap">One contract, two generated sides</div>
+          <pre class="code"><span class="c">&lt;!-- Discount.Grpc.csproj --&gt;</span>
+&lt;Protobuf Include=<span class="s">"Protos\discount.proto"</span> GrpcServices=<span class="s">"Server"</span> /&gt;
+
+<span class="c">&lt;!-- Basket.API.csproj: the same file, linked --&gt;</span>
+&lt;Protobuf Include=<span class="s">"..\Discount.Grpc\Protos\discount.proto"</span>
+          GrpcServices=<span class="s">"Client"</span> /&gt;</pre>
+        </div>
+        <div class="stack">
+          <div class="cap">Run (two terminals, in grpc-demo)</div>
+          <pre class="code">dotnet run --project Discount.Grpc   <span class="c"># terminal 1: server</span>
+dotnet run --project Basket.API      <span class="c"># terminal 2: client</span></pre>
+          <div class="callout teal" style="font-size: 16px">Seeded coupons: IPhone X −150 · Samsung 10 −100 · anything else: "No Discount" (0)</div>
+        </div>
+      </div>
+      <p class="note">Simplified from the course: Basket keeps carts in memory (no Marten, Redis, PostgreSQL) and calls Discount over plain HTTP/2, so no dev certificate is needed.</p>
+    </section>
+
+    <!-- 41 -->
+    <section class="slide">
+      <h1>Demo steps</h1>
+      <table>
+        <tr>
+          <th style="width: 44px">#</th>
+          <th>Request (demo.http)</th>
+          <th>gRPC method called</th>
+          <th>Result</th>
+        </tr>
+        <tr>
+          <td>1</td>
+          <td><code>POST /basket</code>: IPhone X 950 · Samsung 10 840 ×2 · Huawei Plus 650</td>
+          <td><code>GetDiscount</code> ×3</td>
+          <td><b>800 · 740 · 650</b></td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td><code>GET /basket/swn</code></td>
+          <td>(none)</td>
+          <td>Saved, total 2,930</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td><code>POST /discount</code>: Huawei Plus, amount 50</td>
+          <td><code>CreateDiscount</code></td>
+          <td>New coupon, id 3</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td><code>POST /basket</code>: Huawei Plus 650 again</td>
+          <td><code>GetDiscount</code></td>
+          <td><b>600</b></td>
+        </tr>
+      </table>
+      <div class="g2">
+        <div class="box teal">
+          <div class="hd">Discount.Grpc log (server)</div>
+          <p class="center" style="font-size: 15px"><code>Discount is retrieved for ProductName : IPhone X, Amount : 150</code><br /><code>Discount is successfully created. ProductName : Huawei Plus</code></p>
+        </div>
+        <div class="box">
+          <div class="hd">Basket.API log (client)</div>
+          <p class="center" style="font-size: 15px"><code>gRPC GetDiscount(IPhone X) returned amount 150</code><br /><code>gRPC GetDiscount(Huawei Plus) returned amount 0</code></p>
+        </div>
+      </div>
+      <div class="callout">Optional: stop Discount.Grpc and send request 1 again: it fails. A synchronous call means temporal coupling.</div>
+    </section>
+
+    <!-- 42 -->
+    <section class="slide">
+      <h1>Summary</h1>
+      <div class="g2 fill" style="grid-template-rows: repeat(3, 1fr)">
+        <div class="box">
+          <div class="hd">Microservices</div>
+          <p class="center">Small, autonomous services built around business capabilities, each with its own data and deployment. Adopt them only for a real reason.</p>
+        </div>
+        <div class="box">
+          <div class="hd">DDD</div>
+          <p class="center"><b>Where to split</b> (bounded contexts, ubiquitous language) and <b>how to model</b> each service (entities, value objects, aggregates)</p>
+        </div>
+        <div class="box teal">
+          <div class="hd">Synchronous</div>
+          <p class="center"><b>REST</b> for client-facing APIs, <b>gRPC + Protobuf</b> for fast, contract-first internal calls</p>
+        </div>
+        <div class="box teal">
+          <div class="hd">Asynchronous</div>
+          <p class="center"><b>Events</b> through a <b>message broker</b> (RabbitMQ + MassTransit) with <b>pub/sub</b>, for decoupled workflows</p>
+        </div>
+        <div class="box">
+          <div class="hd">API Gateway &amp; BFF</div>
+          <p class="center">YARP or Ocelot as the single entry point; BFF when you have several kinds of clients</p>
+        </div>
+        <div class="callout teal" style="display: flex; align-items: center; justify-content: center">EShop combines all of these in a single checkout flow</div>
+      </div>
+    </section>
+
+    <!-- 43 -->
+    <section class="slide">
+      <h1>References</h1>
+      <ul style="font-size: 19px; line-height: 1.75">
+        <li>Course: <b>.NET 8 Microservices: DDD, CQRS, Vertical/Clean Architecture</b> (Mehmet Ozkaya, Udemy): https://www.udemy.com/course/microservices-architecture-and-implementation-on-dotnet/</li>
+        <li>Martin Fowler, <i>Microservices</i>: https://martinfowler.com/articles/microservices.html</li>
+        <li>Eric Evans, <i>Domain-Driven Design: Tackling Complexity in the Heart of Software</i> (2003)</li>
+        <li>Microsoft, <i>.NET Microservices Architecture</i>: https://learn.microsoft.com/dotnet/architecture/microservices/</li>
+        <li>gRPC on .NET: https://learn.microsoft.com/aspnet/core/grpc/ · MassTransit: https://masstransit.io · RabbitMQ: https://www.rabbitmq.com</li>
+        <li>YARP: https://microsoft.github.io/reverse-proxy/ · Ocelot: https://github.com/ThreeMammals/Ocelot</li>
+      </ul>
+    </section>
+
+    <!-- 44 -->
+    <section class="slide title-slide">
+      <h1>Questions?</h1>
+      <p class="intro" style="margin: 0; font-size: 24px">Thank you!</p>
+      <div class="flow center"></div>
+    </section>
+
+    <div class="hint">
+      <button id="prev" type="button" aria-label="Previous slide">‹</button>
+      <input id="goto" type="number" min="1" aria-label="Go to slide" />
+      <span id="total"></span>
+      <button id="next" type="button" aria-label="Next slide">›</button>
+      <span class="sep">·</span>
+      <span>← → to navigate · F for full screen · Ctrl+P to save as PDF</span>
     </div>
-  </div>
-</section>
 
-<!-- 40 -->
-<section class="slide">
-  <h1>Choosing an invocation method</h1>
-  <table>
-    <tr><th>Method</th><th>Style</th><th>Best for</th><th>EShop usage</th></tr>
-    <tr><td>REST / HTTP</td><td>Sync, JSON</td><td>Public and client-facing APIs</td><td>Web → Gateway → Catalog, Basket, Ordering</td></tr>
-    <tr><td>gRPC</td><td>Sync, binary, HTTP/2</td><td>Fast internal calls with strict contracts</td><td>Basket → Discount (price calculation)</td></tr>
-    <tr><td>Messaging (RabbitMQ)</td><td>Async, events</td><td>Cross-service workflows, decoupling, fan-out</td><td>Basket → Ordering (checkout)</td></tr>
-    <tr><td>API Gateway (YARP)</td><td>Sync, reverse proxy</td><td>Single entry point, rate limiting, security</td><td>Shopping.Web → YarpApiGateway</td></tr>
-  </table>
-  <div class="callout">Real systems mix these methods. Keep sync call chains short; use messaging for anything that doesn't need an immediate answer.</div>
-  <div class="g2">
-    <div class="box"><div class="hd">Need the answer now?</div><p class="center">Basket needs the discount to show a price → <b>synchronous</b></p></div>
-    <div class="box teal"><div class="hd">Don't need it now?</div><p class="center">Basket doesn't need the order number to finish checkout → <b>event</b></p></div>
-  </div>
-</section>
-
-<!-- 41 -->
-<section class="slide">
-  <h1>Demo: one checkout, end to end</h1>
-  <div class="stack" style="gap:10px">
-    <div class="flow"><span class="chip solid" style="width:300px">① POST /basket-service/basket</span><svg class="arr"><use href="#ar"/></svg><span class="chip teal">YARP</span><svg class="arr"><use href="#ar"/></svg><span class="chip">Basket</span><svg class="arr"><use href="#ar"/></svg><span class="lbl">gRPC</span><svg class="arr"><use href="#ar"/></svg><span class="chip">Discount (−150)</span></div>
-    <div class="flow"><span class="chip solid" style="width:300px">② POST …/basket/checkout</span><svg class="arr"><use href="#ar"/></svg><span class="chip teal">YARP</span><svg class="arr"><use href="#ar"/></svg><span class="chip">Basket</span><svg class="arr"><use href="#ar"/></svg><span class="chip red">RabbitMQ</span><svg class="arr"><use href="#ar"/></svg><span class="chip">Ordering → SQL Server</span></div>
-    <div class="flow"><span class="chip solid" style="width:300px">③ GET /ordering-service/orders</span><svg class="arr"><use href="#ar"/></svg><span class="chip teal">YARP</span><svg class="arr"><use href="#ar"/></svg><span class="chip">Ordering</span><span class="note">&nbsp; the new order is there</span></div>
-  </div>
-  <div class="cap">Setup (started before the talk, from section20)</div>
-  <pre class="code">docker-compose -f docker-compose.yml -f docker-compose.override.yml up -d --build</pre>
-  <div class="g3">
-    <div class="box teal"><div class="hd">YARP API Gateway</div><p class="center"><code>http://localhost:6004</code></p></div>
-    <div class="box red"><div class="hd">RabbitMQ UI</div><p class="center"><code>localhost:15672</code> · guest / guest</p></div>
-    <div class="box"><div class="hd">Shopping.Web</div><p class="center"><code>http://localhost:6005</code></p></div>
-  </div>
-  <p class="note">Basket calls Discount over HTTPS inside Docker, which needs an ASP.NET dev certificate (<code>dotnet dev-certs https --trust</code>). Visual Studio sets this up automatically.</p>
-</section>
-
-<!-- 42 -->
-<section class="slide">
-  <h1>Demo commands</h1>
-  <pre class="code sm"><span class="c"># ① Store a basket: REST through the gateway, then gRPC to Discount</span>
-curl -X POST http://localhost:6004/basket-service/basket -H <span class="s">"Content-Type: application/json"</span> \
-  -d <span class="s">'{ "Cart": { "UserName": "swn", "Items": [ { "ProductId": "5334c996-8457-4cf0-815c-ed2b77c4ff61",
-        "ProductName": "IPhone X", "Price": 950, "Quantity": 1, "Color": "Black" } ] } }'</span>
-curl http://localhost:6004/basket-service/basket/swn          <span class="c"># price is now 800 (950 − 150)</span>
-
-<span class="c"># ② Check out: Basket publishes BasketCheckoutEvent to RabbitMQ</span>
-curl -X POST http://localhost:6004/basket-service/basket/checkout -H <span class="s">"Content-Type: application/json"</span> \
-  -d <span class="s">'{ "BasketCheckoutDto": { "userName": "swn", "customerId": "189dc8dc-990f-48e0-a37b-e6f2b60b9d7d",
-        "firstName": "swn", "lastName": "swn", "emailAddress": "test@test.com",
-        "addressLine": "34 Charles Street", "country": "USA", "state": "Michigan", "zipCode": "48198",
-        "cardName": "swn", "cardNumber": "485-3184", "expiration": "11/30", "cvv": "333",
-        "paymentMethod": 1 } }'</span>                                  <span class="c"># → { "isSuccess": true }, immediately</span>
-
-<span class="c"># ③ The order was created asynchronously by Ordering</span>
-curl <span class="s">"http://localhost:6004/ordering-service/orders?pageIndex=0&amp;pageSize=10"</span>   <span class="c"># seeded ORD_1, ORD_2 + "swn"</span></pre>
-  <div class="g3">
-    <div class="box"><div class="hd">Discount log</div><p class="center" style="font-size:15px"><code>Discount is retrieved for ProductName : IPhone X, Amount : 150</code></p></div>
-    <div class="box red"><div class="hd">RabbitMQ exchange</div><p class="center" style="font-size:15px"><code>BuildingBlocks.Messaging.Events:BasketCheckoutEvent</code></p></div>
-    <div class="box teal"><div class="hd">Ordering logs</div><p class="center" style="font-size:15px"><code>Integration Event handled: BasketCheckoutEvent</code><br>then <code>Domain Event handled: OrderCreatedEvent</code></p></div>
-  </div>
-  <p class="note">The course code creates the order with fixed demo items (<code>BasketCheckoutEventHandler</code>, marked TODO), not the basket's items.</p>
-</section>
-
-<!-- 43 -->
-<section class="slide">
-  <h1>Summary</h1>
-  <div class="g2 fill" style="grid-template-rows:repeat(3,1fr)">
-    <div class="box"><div class="hd">Microservices</div><p class="center">Small, autonomous services built around business capabilities, each with its own data and deployment. Adopt them only for a real reason.</p></div>
-    <div class="box"><div class="hd">DDD</div><p class="center"><b>Where to split</b> (bounded contexts, ubiquitous language) and <b>how to model</b> each service (entities, value objects, aggregates)</p></div>
-    <div class="box teal"><div class="hd">Synchronous</div><p class="center"><b>REST</b> for client-facing APIs, <b>gRPC + Protobuf</b> for fast, contract-first internal calls</p></div>
-    <div class="box teal"><div class="hd">Asynchronous</div><p class="center"><b>Events</b> through a <b>message broker</b> (RabbitMQ + MassTransit) with <b>pub/sub</b>, for decoupled workflows</p></div>
-    <div class="box"><div class="hd">API Gateway &amp; BFF</div><p class="center">YARP or Ocelot as the single entry point; BFF when you have several kinds of clients</p></div>
-    <div class="callout teal" style="display:flex;align-items:center;justify-content:center">EShop combines all of these in a single checkout flow</div>
-  </div>
-</section>
-
-<!-- 44 -->
-<section class="slide">
-  <h1>References</h1>
-  <ul style="font-size:19px;line-height:1.75">
-    <li>Course: <b>.NET 8 Microservices: DDD, CQRS, Vertical/Clean Architecture</b> (Mehmet Ozkaya, Udemy): https://www.udemy.com/course/microservices-architecture-and-implementation-on-dotnet/</li>
-    <li>Martin Fowler, <i>Microservices</i>: https://martinfowler.com/articles/microservices.html</li>
-    <li>Eric Evans, <i>Domain-Driven Design: Tackling Complexity in the Heart of Software</i> (2003)</li>
-    <li>Microsoft, <i>.NET Microservices Architecture</i>: https://learn.microsoft.com/dotnet/architecture/microservices/</li>
-    <li>gRPC on .NET: https://learn.microsoft.com/aspnet/core/grpc/ · MassTransit: https://masstransit.io · RabbitMQ: https://www.rabbitmq.com</li>
-    <li>YARP: https://microsoft.github.io/reverse-proxy/ · Ocelot: https://github.com/ThreeMammals/Ocelot</li>
-  </ul>
-</section>
-
-<!-- 45 -->
-<section class="slide title-slide">
-  <h1>Questions?</h1>
-  <p class="intro" style="margin:0;font-size:24px">Thank you!</p>
-  <div class="flow center"></div>
-</section>
-
-<div class="hint">← → to navigate · F for full screen · Ctrl+P to save as PDF</div>
-
-<script>
-  const slides = Array.from(document.querySelectorAll('.slide'));
-  slides.forEach((s, k) => {
-    const n = document.createElement('div');
-    n.className = 'num'; n.textContent = k + 1;
-    s.appendChild(n);
-  });
-  let cur = 0;
-  function show(n) {
-    cur = Math.max(0, Math.min(slides.length - 1, n));
-    slides.forEach((s, k) => s.classList.toggle('active', k === cur));
-    history.replaceState(null, '', '#' + (cur + 1));
-  }
-  function fit() {
-    const s = Math.min(window.innerWidth / 1280, window.innerHeight / 720) * 0.98;
-    document.documentElement.style.setProperty('--scale', s);
-  }
-  document.addEventListener('keydown', e => {
-    if (e.key === 'ArrowRight') { e.preventDefault(); show(cur + 1); }
-    else if (e.key === 'ArrowLeft') { e.preventDefault(); show(cur - 1); }
-    else if (e.key === 'Home') show(0);
-    else if (e.key === 'End') show(slides.length - 1);
-    else if (e.key === 'f' || e.key === 'F') {
-      if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen();
-    }
-  });
-  window.addEventListener('resize', fit);
-  fit();
-  show((parseInt(location.hash.slice(1), 10) || 1) - 1);
-</script>
-</body>
+    <script>
+      const slides = Array.from(document.querySelectorAll(".slide"));
+      slides.forEach((s, k) => {
+        const n = document.createElement("div");
+        n.className = "num";
+        n.textContent = k + 1;
+        s.appendChild(n);
+      });
+      const prevBtn = document.getElementById("prev");
+      const nextBtn = document.getElementById("next");
+      const gotoInput = document.getElementById("goto");
+      gotoInput.max = slides.length;
+      document.getElementById("total").textContent = "/ " + slides.length;
+      let cur = 0;
+      function show(n) {
+        cur = Math.max(0, Math.min(slides.length - 1, n));
+        slides.forEach((s, k) => s.classList.toggle("active", k === cur));
+        history.replaceState(null, "", "#" + (cur + 1));
+        gotoInput.value = cur + 1;
+        prevBtn.disabled = cur === 0;
+        nextBtn.disabled = cur === slides.length - 1;
+      }
+      function fit() {
+        // Leave 44px at the bottom for the control bar.
+        const s = Math.min(window.innerWidth / 1280, (window.innerHeight - 44) / 720) * 0.98;
+        document.documentElement.style.setProperty("--scale", s);
+      }
+      prevBtn.addEventListener("click", () => show(cur - 1));
+      nextBtn.addEventListener("click", () => show(cur + 1));
+      function goTo() {
+        const n = parseInt(gotoInput.value, 10);
+        if (n) show(n - 1);
+        else gotoInput.value = cur + 1;
+      }
+      gotoInput.addEventListener("change", goTo);
+      gotoInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          goTo();
+          gotoInput.blur();
+        } else if (e.key === "Escape") {
+          gotoInput.value = cur + 1;
+          gotoInput.blur();
+        }
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.target === gotoInput) return;
+        if (e.key === "ArrowRight") {
+          e.preventDefault();
+          show(cur + 1);
+        } else if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          show(cur - 1);
+        } else if (e.key === "Home") show(0);
+        else if (e.key === "End") show(slides.length - 1);
+        else if (e.key === "f" || e.key === "F") {
+          if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+          else document.exitFullscreen();
+        }
+      });
+      window.addEventListener("resize", fit);
+      fit();
+      show((parseInt(location.hash.slice(1), 10) || 1) - 1);
+    </script>
+  </body>
 </html>

@@ -43,7 +43,7 @@ Reference project: **EShopMicroservices** (Catalog, Basket, Discount, Ordering, 
 | 3 | **Synchronous communication**: service-to-service calls, REST vs. gRPC, Protobuf and gRPC in .NET | ~10&nbsp;min |
 | 4 | **Asynchronous communication**: event-driven basics, message brokers (RabbitMQ), pub/sub | ~10&nbsp;min |
 | 5 | **API Gateway & BFF**: role of a gateway, Backends for Frontends, YARP and Ocelot | ~7&nbsp;min |
-| 6 | **Demo**: one checkout, end to end | ~6&nbsp;min |
+| 6 | **Demo**: gRPC call, Basket → Discount (runs locally, no Docker) | ~6&nbsp;min |
 | 7 | Summary and Q&A | ~4&nbsp;min |
 
 ---
@@ -1197,59 +1197,65 @@ Real systems **mix** these methods. Keep sync call chains short and use async me
 
 <!-- _class: dense -->
 
-## Demo: one checkout, end to end
+## Demo: gRPC call, Basket → Discount
+
+Sections 10–12 only. Runs on a laptop with the .NET 8 SDK: **no Docker, no database server**.
 
 ```
- ① POST /basket-service/basket            Client ──REST──► YARP ──► Basket ──gRPC──► Discount (−150)
- ② POST /basket-service/basket/checkout   Client ──REST──► YARP ──► Basket ──publish──► RabbitMQ
-                                                                                         │ consume
-                                                                                         ▼
-                                                                         Ordering ──► SQL Server
- ③ GET  /ordering-service/orders          Client ──REST──► YARP ──► Ordering   (new order)
+ curl / demo.http ──REST/JSON──► Basket.API :5001 ──gRPC (HTTP/2 + Protobuf)──► Discount.Grpc :5002 ──► SQLite
+                                 gRPC client         GetDiscount / CreateDiscount    gRPC server
+                                 in-memory carts
 ```
 
-**Setup** (started before the talk, from `section20`):
+<div class="cols">
+<div>
+
+**One contract, two generated sides**
+
+```xml
+<!-- Discount.Grpc.csproj -->
+<Protobuf Include="Protos\discount.proto" GrpcServices="Server" />
+
+<!-- Basket.API.csproj: the same file, linked -->
+<Protobuf Include="..\Discount.Grpc\Protos\discount.proto"
+          GrpcServices="Client" />
+```
+
+</div>
+<div>
+
+**Run** (two terminals, in `grpc-demo`)
 
 ```bash
-docker-compose -f docker-compose.yml -f docker-compose.override.yml up -d --build
+dotnet run --project Discount.Grpc   # terminal 1: server
+dotnet run --project Basket.API      # terminal 2: client
 ```
 
-| What | URL |
-|---|---|
-| YARP API Gateway | http://localhost:6004 |
-| RabbitMQ management UI | http://localhost:15672 (guest / guest) |
-| Shopping.Web | http://localhost:6005 |
+Seeded coupons: **IPhone X −150**, **Samsung 10 −100**, anything else "No Discount" (0)
 
-> Basket calls Discount over HTTPS inside Docker, which needs an ASP.NET dev certificate (`dotnet dev-certs https --trust`). Visual Studio sets this up automatically.
+</div>
+</div>
+
+<span class="small">Simplified from the course: Basket keeps carts in memory (no Marten, Redis, PostgreSQL) and calls Discount over plain HTTP/2, so no dev certificate is needed.</span>
 
 ---
 
 <!-- _class: dense -->
 
-## Demo commands
+## Demo steps
 
-```bash
-# ① Store a basket: REST through the gateway, then gRPC to Discount
-curl -X POST http://localhost:6004/basket-service/basket -H "Content-Type: application/json" \
-  -d '{ "Cart": { "UserName": "swn", "Items": [ { "ProductId": "5334c996-8457-4cf0-815c-ed2b77c4ff61",
-        "ProductName": "IPhone X", "Price": 950, "Quantity": 1, "Color": "Black" } ] } }'
-curl http://localhost:6004/basket-service/basket/swn          # price is now 800 (950 − 150)
+| # | Request (`demo.http`) | gRPC method called | Result |
+|---|---|---|---|
+| 1 | `POST /basket`: IPhone X 950 · Samsung 10 840 ×2 · Huawei Plus 650 | `GetDiscount` ×3 | **800 · 740 · 650** |
+| 2 | `GET /basket/swn` | (none) | Saved, total 2,930 |
+| 3 | `POST /discount`: Huawei Plus, amount 50 | `CreateDiscount` | New coupon, id 3 |
+| 4 | `POST /basket`: Huawei Plus 650 again | `GetDiscount` | **600** |
 
-# ② Check out: Basket publishes BasketCheckoutEvent to RabbitMQ
-curl -X POST http://localhost:6004/basket-service/basket/checkout -H "Content-Type: application/json" \
-  -d '{ "BasketCheckoutDto": { "userName": "swn", "customerId": "189dc8dc-990f-48e0-a37b-e6f2b60b9d7d",
-        "firstName": "swn", "lastName": "swn", "emailAddress": "test@test.com",
-        "addressLine": "34 Charles Street", "country": "USA", "state": "Michigan", "zipCode": "48198",
-        "cardName": "swn", "cardNumber": "485-3184", "expiration": "11/30", "cvv": "333",
-        "paymentMethod": 1 } }'                                  # → { "isSuccess": true }, immediately
+**What to watch**
+- Discount.Grpc (server): `Discount is retrieved for ProductName : IPhone X, Amount : 150` · `Discount is successfully created. ProductName : Huawei Plus`
+- Basket.API (client): `gRPC GetDiscount(IPhone X) returned amount 150` · `gRPC GetDiscount(Huawei Plus) returned amount 0`
 
-# ③ The order was created asynchronously by Ordering
-curl "http://localhost:6004/ordering-service/orders?pageIndex=0&pageSize=10"   # seeded ORD_1, ORD_2 + "swn"
-```
-
-**What to watch:** Discount log `Discount is retrieved for ProductName : IPhone X, Amount : 150` · RabbitMQ exchange `BuildingBlocks.Messaging.Events:BasketCheckoutEvent` · Ordering logs `Integration Event handled: BasketCheckoutEvent`, then `Domain Event handled: OrderCreatedEvent`
-
-<span class="small">The course code creates the order with fixed demo items (`BasketCheckoutEventHandler`, marked TODO), not the basket's items.</span>
+> Optional: stop Discount.Grpc and send request 1 again: it fails. A synchronous call means temporal coupling.
 
 ---
 
@@ -1285,4 +1291,4 @@ curl "http://localhost:6004/ordering-service/orders?pageIndex=0&pageSize=10"   #
 
 ### Thank you!
 
-Code: `section20` · Postman: `EShopMicroservices.postman_collection.json`
+Course code: `section20` · gRPC demo: `grpc-demo`
