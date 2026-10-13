@@ -53,3 +53,13 @@ Hãy tưởng tượng bạn đang xây dựng một ứng dụng Thương mại
 • Khối Monolith (hoặc Modular Monolith): Dùng cho các tính năng Lõi (Core Business) như Quản lý sản phẩm, Quản lý tài khoản, Đơn hàng và Thanh toán. Đây là những tính năng có logic nghiệp vụ rất phức tạp, dữ liệu quan hệ chặt chẽ, cần độ an toàn cao và ít khi thay đổi cấu trúc đột ngột.
 • Khối Microservices: Dùng cho các tính năng cần độc lập và scale (mở rộng) mạnh mẽ như hệ thống Chat giữa người mua - người bán, hoặc hệ thống Gợi ý sản phẩm (Recommendation System) chạy bằng AI. Các dịch vụ này có thể viết bằng các ngôn ngữ khác nhau (như Python cho AI, Go cho Chat) để tối ưu hiệu năng.
 • Khối Serverless (Functions): Dùng cho các tác vụ chạy theo sự kiện (Event-driven) và không liên tục. Ví dụ: Khi người dùng tải ảnh sản phẩm lên, một hàm Serverless (như AWS Lambda) sẽ tự động kích hoạt để nén ảnh và tạo ảnh thu nhỏ (thumbnail), sau đó tự tắt đi để tiết kiệm chi phí.
+
+---
+
+Hệ thống thực tế thường kết hợp chúng. Lời khuyên để mang về: giữ các chuỗi gọi synchronous **ngắn**, và dùng messaging cho bất cứ thứ gì không cần câu trả lời ngay.
+
+Một phép thử đơn giản mà mọi người có thể dùng: người gọi có cần câu trả lời *ngay bây giờ* để tiếp tục không? Basket cần discount ngay lúc đó để hiển thị giá, nên đó là một synchronous call. Basket không cần số order để hoàn tất checkout, nên đó là một event. 
+   (• Để hiển thị giá lúc đó: Basket bắt buộc phải gọi sang service Discount để lấy giá giảm ngay lập tức (Synchronous). Không có giá giảm, Basket không thể hiển thị đúng số tiền cho user bấm nút.
+   • Khi user bấm Checkout: Nhiệm vụ của Basket đến đây là KẾT THÚC. Nó chỉ cần gom đống sản phẩm + tổng tiền lại, ném một thông báo (Event) ra hệ thống: "User X vừa bấm đặt hàng đống này nè!".
+
+   Basket không quan tâm và không cần biết số Order ID là gì, vì việc sinh ra số Order, trừ kho, giao hàng... là việc của các service phía sau. Basket có thể lập tức xóa giỏ hàng trống và báo cho user: "Đang xử lý đơn hàng" mà không cần đứng đợi xem số order tạo ra là số mấy.)

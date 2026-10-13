@@ -539,33 +539,28 @@
         </tr>
         <tr>
           <td>2</td>
-          <td><b>Building a microservice</b> (short): from analysis to a running container</td>
-          <td>~5 min</td>
-        </tr>
-        <tr>
-          <td>3</td>
           <td><b>Synchronous communication</b>: service-to-service calls, REST vs. gRPC, Protobuf and gRPC in .NET</td>
           <td>~10 min</td>
         </tr>
         <tr>
-          <td>4</td>
+          <td>3</td>
           <td><b>Asynchronous communication</b>: event-driven basics, message brokers (RabbitMQ), pub/sub</td>
           <td>~10 min</td>
         </tr>
         <tr>
-          <td>5</td>
+          <td>4</td>
           <td><b>API Gateway &amp; BFF</b>: role of a gateway, Backends for Frontends, YARP and Ocelot</td>
-          <td>~7 min</td>
+          <td>~8 min</td>
         </tr>
         <tr>
-          <td>6</td>
+          <td>5</td>
           <td><b>Demo</b>: gRPC call, Basket → Discount (runs locally, no Docker)</td>
           <td>~6 min</td>
         </tr>
         <tr>
-          <td>7</td>
+          <td>6</td>
           <td>Summary and Q&amp;A</td>
-          <td>~4 min</td>
+          <td>~8 min</td>
         </tr>
       </table>
     </section>
@@ -1009,33 +1004,38 @@
     <!-- 15 -->
     <section class="slide">
       <h1>The big picture: EShop microservices</h1>
-      <div class="fill" style="display: grid; grid-template-columns: 190px 50px 150px 50px 1fr 120px 150px; grid-template-rows: repeat(4, 1fr); gap: 10px 0; align-items: center">
+      <div class="fill" style="display: grid; grid-template-columns: 190px 50px 150px 50px minmax(0, 1fr) 120px 150px; grid-template-rows: 1fr 1fr 60px 1fr 1fr; gap: 0; align-items: center">
         <div class="cap" style="grid-column: 1; grid-row: 1; align-self: end; text-align: center">Client apps</div>
-        <div class="box" style="grid-column: 1; grid-row: 2/4">
+        <div class="box" style="grid-column: 1; grid-row: 2/5">
           <div class="hd">Shopping.Web</div>
           <p class="center note">Razor Pages + Refit</p>
         </div>
-        <svg class="arr" style="grid-column: 2; grid-row: 2/4; justify-self: center"><use href="#ar" /></svg>
-        <div class="box teal" style="grid-column: 3; grid-row: 1/5; height: 100%; display: flex; flex-direction: column; justify-content: center">
+        <svg class="arr" style="grid-column: 2; grid-row: 2/5; justify-self: center"><use href="#ar" /></svg>
+        <div class="box teal" style="grid-column: 3; grid-row: 1/6; height: 100%; display: flex; flex-direction: column; justify-content: center">
           <div class="hd">YARP<br />API Gateway</div>
           <p class="center note">routing · rate limiting</p>
         </div>
         <svg class="arr" style="grid-column: 4; grid-row: 1; justify-self: center"><use href="#ar" /></svg>
         <svg class="arr" style="grid-column: 4; grid-row: 2; justify-self: center"><use href="#ar" /></svg>
-        <svg class="arr" style="grid-column: 4; grid-row: 4; justify-self: center"><use href="#ar" /></svg>
+        <svg class="arr" style="grid-column: 4; grid-row: 5; justify-self: center"><use href="#ar" /></svg>
         <div class="box" style="grid-column: 5; grid-row: 1; padding: 8px 14px">
           <div class="flow" style="justify-content: space-between"><b>Catalog</b><span class="chip grey">PostgreSQL (Marten)</span></div>
           <span class="note">Vertical Slice</span>
         </div>
         <div class="box" style="grid-column: 5; grid-row: 2; padding: 8px 14px">
           <div class="flow" style="justify-content: space-between"><b>Basket</b><span class="chip grey">PostgreSQL + Redis</span></div>
-          <span class="note">Vertical Slice · ↓ gRPC to Discount</span>
+          <span class="note">Vertical Slice · gRPC client</span>
         </div>
-        <div class="box" style="grid-column: 5; grid-row: 3; padding: 8px 14px">
-          <div class="flow" style="justify-content: space-between"><b>Discount.Grpc</b><span class="chip grey">SQLite</span></div>
-          <span class="note">internal only, no gateway route</span>
+        <div style="grid-column: 5; grid-row: 3; display: flex; align-items: center; gap: 10px; padding-left: 24px">
+          <svg class="arr down" style="width: 26px; height: 60px; color: var(--purple)" viewBox="0 0 18 34" preserveAspectRatio="none"><line x1="9" y1="1" x2="9" y2="27" stroke="currentColor" stroke-width="3.2"/><path d="M2 20 L9 32 L16 20" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round"/></svg>
+          <span class="chip solid" style="font-size: 15px; padding: 5px 12px">gRPC · GetDiscount(productName)</span>
+          <span class="note" style="white-space: nowrap">sync · HTTP/2 + Protobuf</span>
         </div>
         <div class="box" style="grid-column: 5; grid-row: 4; padding: 8px 14px">
+          <div class="flow" style="justify-content: space-between"><b>Discount.Grpc</b><span class="chip grey">SQLite</span></div>
+          <span class="note">gRPC server · internal only, no gateway route</span>
+        </div>
+        <div class="box" style="grid-column: 5; grid-row: 5; padding: 8px 14px">
           <div class="flow" style="justify-content: space-between"><b>Ordering</b><span class="chip grey">SQL Server</span></div>
           <span class="note">Clean Architecture + DDD</span>
         </div>
@@ -1043,11 +1043,11 @@
           <div class="lbl">publish</div>
           <svg class="arr" style="width: 100%"><use href="#ar" /></svg>
         </div>
-        <div style="grid-column: 6; grid-row: 4" class="stack">
+        <div style="grid-column: 6; grid-row: 5" class="stack">
           <div class="lbl">consume</div>
           <svg class="arr" style="width: 100%"><use href="#arl" /></svg>
         </div>
-        <div class="box red" style="grid-column: 7; grid-row: 1/5; height: 100%; display: flex; flex-direction: column; justify-content: center">
+        <div class="box red" style="grid-column: 7; grid-row: 1/6; height: 100%; display: flex; flex-direction: column; justify-content: center">
           <div class="hd">RabbitMQ</div>
           <p class="center note">+ MassTransit<br />event bus</p>
         </div>
@@ -1058,145 +1058,11 @@
     <!-- 16 -->
     <section class="slide divider">
       <div class="part">Part 2</div>
-      <h1>Building a Microservice</h1>
-      <p class="intro">The short version: from analysis to a running container</p>
-    </section>
-
-    <!-- 17 -->
-    <section class="slide">
-      <h1>From analysis to a running service</h1>
-      <div class="g2 fill">
-        <div class="stack">
-          <div class="cap">The process for each service</div>
-          <div class="box" style="padding: 8px 16px"><b>1 · Domain analysis</b><span class="note"> — models, use cases, API endpoints, data store</span></div>
-          <div class="box" style="padding: 8px 16px"><b>2 · Technical analysis</b><span class="note"> — architecture style, patterns, libraries, folders</span></div>
-          <div class="box teal" style="padding: 8px 16px"><b>3 · Develop</b><span class="note"> — ASP.NET Core 8 Minimal APIs</span></div>
-          <div class="box teal" style="padding: 8px 16px"><b>4 · Containerize</b><span class="note"> — Dockerfile</span></div>
-          <div class="box teal" style="padding: 8px 16px"><b>5 · Orchestrate</b><span class="note"> — docker-compose</span></div>
-          <div class="callout purple" style="font-size: 16px">Program.cs always has 5 steps: builder → register services (DI) → build → configure pipeline → run</div>
-        </div>
-        <div class="stack">
-          <div class="cap">The smallest microservice (section4/TodoApi)</div>
-          <pre class="code"><span class="k">var</span> builder = WebApplication.CreateBuilder(args);
-builder.Services.AddDbContext&lt;TodoDb&gt;(opt =&gt;
-    opt.UseInMemoryDatabase(<span class="s">"TodoList"</span>));
-<span class="k">var</span> app = builder.Build();
-
-app.MapGet(<span class="s">"/todoitems"</span>, <span class="k">async</span> (TodoDb db) =&gt;
-    <span class="k">await</span> db.Todos.ToListAsync());
-
-app.MapPost(<span class="s">"/todoitems"</span>, <span class="k">async</span> (TodoItem todo, TodoDb db) =&gt;
-{
-    db.Todos.Add(todo);
-    <span class="k">await</span> db.SaveChangesAsync();
-    <span class="k">return</span> Results.Created($<span class="s">"/todoitems/{todo.Id}"</span>, todo);
-});
-
-app.Run();</pre>
-          <p class="center" style="font-weight: 600; color: var(--teal)">One process · one responsibility · its own data · an HTTP API</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- 18 -->
-    <section class="slide">
-      <h1>A real service: Catalog.API (Vertical Slice + CQRS)</h1>
-      <div class="flow center">
-        <span class="chip">HTTP</span><svg class="arr"><use href="#ar" /></svg><span class="chip">Endpoint<small>Carter</small></span
-        ><svg class="arr"><use href="#ar" /></svg><span class="chip">MediatR<small>mediator</small></span
-        ><svg class="arr"><use href="#ar" /></svg><span class="chip">Handler<small>CQRS</small></span
-        ><svg class="arr"><use href="#ar" /></svg><span class="chip teal">Database<small>Marten</small></span>
-      </div>
-      <div class="row" style="align-items: flex-start">
-        <div class="stack" style="flex: 0 0 380px">
-          <pre class="code sm">Catalog.API/
-├── Models/Product.cs
-├── Products/        <span class="c">← one folder per feature</span>
-│   ├── CreateProduct/
-│   │   ├── CreateProductEndpoint.cs
-│   │   └── CreateProductHandler.cs
-│   ├── GetProductById/
-│   ├── GetProducts/
-│   ├── UpdateProduct/
-│   └── DeleteProduct/
-├── Dockerfile
-└── Program.cs</pre>
-          <p style="font-size: 16px"><b>Libraries:</b> Carter (endpoints), MediatR (CQRS), Marten (PostgreSQL as a document DB), FluentValidation, Mapster</p>
-        </div>
-        <pre class="code sm"><span class="c">// Endpoint (Carter module, simplified)</span>
-app.MapGet(<span class="s">"/products/{id}"</span>, <span class="k">async</span> (Guid id, ISender sender) =&gt;
-{
-    <span class="k">var</span> result = <span class="k">await</span> sender.Send(<span class="k">new</span> GetProductByIdQuery(id));
-    <span class="k">return</span> Results.Ok(result.Adapt&lt;GetProductByIdResponse&gt;());
-});
-
-<span class="c">// Query handler (simplified)</span>
-<span class="k">internal class</span> GetProductByIdQueryHandler(IDocumentSession session)
-    : IQueryHandler&lt;GetProductByIdQuery, GetProductByIdResult&gt;
-{
-    <span class="k">public async</span> Task&lt;GetProductByIdResult&gt; Handle(
-        GetProductByIdQuery query, CancellationToken ct)
-    {
-        <span class="k">var</span> product = <span class="k">await</span> session.LoadAsync&lt;Product&gt;(query.Id, ct)
-            ?? <span class="k">throw new</span> ProductNotFoundException(query.Id);
-        <span class="k">return new</span> GetProductByIdResult(product);
-    }
-}</pre>
-      </div>
-    </section>
-
-    <!-- 19 -->
-    <section class="slide">
-      <h1>Containerize and orchestrate</h1>
-      <div class="flow center">
-        <span class="chip">Dockerfile</span><svg class="arr"><use href="#ar" /></svg><span class="chip">Image</span><svg class="arr"><use href="#ar" /></svg><span class="chip teal">Container</span><svg class="arr long"><use href="#ar" /></svg
-        ><span class="chip solid teal">docker-compose: 11 containers</span>
-      </div>
-      <div class="g2 fill">
-        <div class="stack">
-          <div class="cap">Multi-stage Dockerfile (generated by Visual Studio)</div>
-          <pre class="code sm"><span class="k">FROM</span> mcr.microsoft.com/dotnet/aspnet:8.0 <span class="k">AS</span> base  <span class="c"># small runtime</span>
-<span class="k">EXPOSE</span> 8080
-<span class="k">EXPOSE</span> 8081
-
-<span class="k">FROM</span> mcr.microsoft.com/dotnet/sdk:8.0 <span class="k">AS</span> build     <span class="c"># full SDK</span>
-<span class="k">COPY</span> . .
-<span class="k">RUN</span> dotnet build <span class="s">"./Catalog.API.csproj"</span> -c Release
-
-<span class="k">FROM</span> build <span class="k">AS</span> publish
-<span class="k">RUN</span> dotnet publish <span class="s">"./Catalog.API.csproj"</span> -c Release -o /app/publish
-
-<span class="k">FROM</span> base <span class="k">AS</span> final                                 <span class="c"># only the output</span>
-<span class="k">COPY</span> --from=publish /app/publish .
-<span class="k">ENTRYPOINT</span> [<span class="s">"dotnet"</span>, <span class="s">"Catalog.API.dll"</span>]</pre>
-        </div>
-        <div class="stack">
-          <div class="cap">docker-compose runs everything together</div>
-          <pre class="code sm">services:
-  catalogdb:
-    image: postgres
-  catalog.api:
-    build:
-      dockerfile: Services/Catalog/Catalog.API/Dockerfile
-    environment:
-      - ConnectionStrings__Database=Server=catalogdb;...
-    depends_on: [ catalogdb ]
-    ports:
-      - <span class="s">"6000:8080"</span></pre>
-          <div class="callout teal" style="font-size: 16px">Inside Docker, services find each other by service name: http://catalog.api:8080</div>
-          <p class="note">EShop runs 11 containers: 5 backing services (2× PostgreSQL, Redis, SQL Server, RabbitMQ) + 6 apps.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- 20 -->
-    <section class="slide divider">
-      <div class="part">Part 3</div>
       <h1>Synchronous Communication: REST &amp; gRPC</h1>
       <p class="intro">Service-to-service calls where the caller waits for the answer</p>
     </section>
 
-    <!-- 21 -->
+    <!-- 17 -->
     <section class="slide big">
       <h1>Service-to-service communication: sync vs. async</h1>
       <p class="intro">Services must cooperate: ask for data ("what's the discount?") or trigger work ("create the order").</p>
@@ -1231,34 +1097,7 @@ app.MapGet(<span class="s">"/products/{id}"</span>, <span class="k">async</span>
       <div class="callout">Rule of thumb: REST for public APIs · gRPC for internal calls · messaging for workflows that span services</div>
     </section>
 
-    <!-- 22 -->
-    <section class="slide">
-      <h1>REST over HTTP</h1>
-      <p class="intro">Resource-oriented endpoints with JSON payloads, understood by every client: browser, mobile, Postman.</p>
-      <div class="flow center"><span class="chip">GET /products</span><span class="chip">POST /basket</span><span class="chip">GET /orders</span></div>
-      <div class="row" style="align-items: flex-start">
-        <div class="box left" style="flex: 0 0 330px">
-          <div class="hd">Refit</div>
-          <p>Shopping.Web consumes the APIs with <b>Refit</b>: a type-safe REST client generated from an <b>interface</b>.</p>
-          <p style="margin-top: 10px">You declare the route on each method; Refit writes the HttpClient code. Call it like a normal C# method.</p>
-        </div>
-        <pre class="code"><span class="k">public interface</span> ICatalogService
-{
-    [Get(<span class="s">"/catalog-service/products?pageNumber={pageNumber}&amp;pageSize={pageSize}"</span>)]
-    Task&lt;GetProductsResponse&gt; GetProducts(<span class="k">int</span>? pageNumber = 1, <span class="k">int</span>? pageSize = 10);
-
-    [Get(<span class="s">"/catalog-service/products/{id}"</span>)]
-    Task&lt;GetProductByIdResponse&gt; GetProduct(Guid id);
-}
-
-<span class="c">// Program.cs — Refit plugs into HttpClientFactory</span>
-builder.Services.AddRefitClient&lt;ICatalogService&gt;()
-    .ConfigureHttpClient(c =&gt;
-        c.BaseAddress = <span class="k">new</span> Uri(builder.Configuration[<span class="s">"ApiSettings:GatewayAddress"</span>]!));</pre>
-      </div>
-    </section>
-
-    <!-- 23 -->
+    <!-- 18 -->
     <section class="slide">
       <h1>Introduction to Protobuf and gRPC</h1>
       <div class="row fill">
@@ -1310,7 +1149,7 @@ builder.Services.AddRefitClient&lt;ICatalogService&gt;()
       </div>
     </section>
 
-    <!-- 24 -->
+    <!-- 19 -->
     <section class="slide">
       <h1>gRPC in .NET: the server (Discount.Grpc)</h1>
       <div class="flow center">
@@ -1340,7 +1179,7 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
 }</pre>
     </section>
 
-    <!-- 25 -->
+    <!-- 20 -->
     <section class="slide">
       <h1>gRPC in .NET: the client (Basket.API calls Discount)</h1>
       <div class="stack fill" style="gap: 10px">
@@ -1380,7 +1219,7 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
       </div>
     </section>
 
-    <!-- 26 -->
+    <!-- 21 -->
     <section class="slide">
       <h1>When to use REST, when to use gRPC</h1>
       <table class="small">
@@ -1433,14 +1272,14 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
       <div class="callout">In EShop: REST behind the gateway for the web app · gRPC for Basket → Discount, once per cart item</div>
     </section>
 
-    <!-- 27 -->
+    <!-- 22 -->
     <section class="slide divider">
-      <div class="part">Part 4</div>
+      <div class="part">Part 3</div>
       <h1>Asynchronous Communication &amp; Message Brokers</h1>
       <p class="intro">Events, brokers, and publish/subscribe</p>
     </section>
 
-    <!-- 28 -->
+    <!-- 23 -->
     <section class="slide">
       <h1>Basic event-driven architecture</h1>
       <div class="g2">
@@ -1480,7 +1319,7 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
       </div>
     </section>
 
-    <!-- 29 -->
+    <!-- 24 -->
     <section class="slide">
       <h1>Domain events vs. integration events</h1>
       <table class="small">
@@ -1528,7 +1367,7 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
       </div>
     </section>
 
-    <!-- 30 -->
+    <!-- 25 -->
     <section class="slide">
       <h1>The role of a message broker (RabbitMQ)</h1>
       <div class="flow center">
@@ -1576,7 +1415,7 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
       </div>
     </section>
 
-    <!-- 31 -->
+    <!-- 26 -->
     <section class="slide">
       <h1>Basic pub/sub pattern</h1>
       <div class="row" style="align-items: center">
@@ -1627,7 +1466,7 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
       </div>
     </section>
 
-    <!-- 32 -->
+    <!-- 27 -->
     <section class="slide">
       <h1>Messaging setup: the shared BuildingBlocks.Messaging library</h1>
       <div class="g2 fill">
@@ -1677,7 +1516,7 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
       </div>
     </section>
 
-    <!-- 33 -->
+    <!-- 28 -->
     <section class="slide">
       <h1>Publish (Basket) → consume (Ordering)</h1>
       <div class="row fill" style="align-items: stretch">
@@ -1735,14 +1574,14 @@ services.AddMessageBroker(configuration,
       <div class="callout">Basket has no idea Ordering exists. It only publishes an event.</div>
     </section>
 
-    <!-- 34 -->
+    <!-- 29 -->
     <section class="slide divider">
-      <div class="part">Part 5</div>
+      <div class="part">Part 4</div>
       <h1>API Gateway &amp; BFF</h1>
       <p class="intro">One front door for all clients, or one per kind of client</p>
     </section>
 
-    <!-- 35 -->
+    <!-- 30 -->
     <section class="slide">
       <h1>The role of an API Gateway</h1>
       <p class="intro">Without a gateway, every client must know every service's address, and every service handles auth, SSL and rate limiting itself.</p>
@@ -1775,7 +1614,7 @@ services.AddMessageBroker(configuration,
       </div>
     </section>
 
-    <!-- 36 -->
+    <!-- 31 -->
     <section class="slide big">
       <h1>Pattern: Backends for Frontends (BFF)</h1>
       <p class="intro">One gateway per type of client, instead of one gateway for everyone.</p>
@@ -1810,7 +1649,7 @@ services.AddMessageBroker(configuration,
       </div>
     </section>
 
-    <!-- 37 -->
+    <!-- 32 -->
     <section class="slide">
       <h1>Introduction to YARP (Yet Another Reverse Proxy)</h1>
       <div class="row fill">
@@ -1865,7 +1704,7 @@ app.MapReverseProxy();</pre>
       </div>
     </section>
 
-    <!-- 38 -->
+    <!-- 33 -->
     <section class="slide">
       <h1>Introduction to Ocelot, and YARP vs. Ocelot</h1>
       <p class="intro">Ocelot is an open-source API gateway library for .NET, configured with an <code>ocelot.json</code> file.</p>
@@ -1925,7 +1764,7 @@ app.Run();</pre>
       </div>
     </section>
 
-    <!-- 39 -->
+    <!-- 34 -->
     <section class="slide">
       <h1>Choosing an invocation method</h1>
       <table>
@@ -1973,7 +1812,7 @@ app.Run();</pre>
       </div>
     </section>
 
-    <!-- 40 -->
+    <!-- 35 -->
     <section class="slide">
       <h1>Demo: gRPC call, Basket → Discount</h1>
       <p class="intro">Sections 10–12 only. Runs on a laptop with the .NET 8 SDK: no Docker, no database server.</p>
@@ -2016,7 +1855,7 @@ dotnet run --project Basket.API      <span class="c"># terminal 2: client</span>
       <p class="note">Simplified from the course: Basket keeps carts in memory (no Marten, Redis, PostgreSQL) and calls Discount over plain HTTP/2, so no dev certificate is needed.</p>
     </section>
 
-    <!-- 41 -->
+    <!-- 36 -->
     <section class="slide">
       <h1>Demo steps</h1>
       <table>
@@ -2064,7 +1903,7 @@ dotnet run --project Basket.API      <span class="c"># terminal 2: client</span>
       <div class="callout">Optional: stop Discount.Grpc and send request 1 again: it fails. A synchronous call means temporal coupling.</div>
     </section>
 
-    <!-- 42 -->
+    <!-- 37 -->
     <section class="slide">
       <h1>Summary</h1>
       <div class="g2 fill" style="grid-template-rows: repeat(3, 1fr)">
@@ -2092,7 +1931,7 @@ dotnet run --project Basket.API      <span class="c"># terminal 2: client</span>
       </div>
     </section>
 
-    <!-- 43 -->
+    <!-- 38 -->
     <section class="slide">
       <h1>References</h1>
       <ul style="font-size: 19px; line-height: 1.75">
@@ -2105,7 +1944,7 @@ dotnet run --project Basket.API      <span class="c"># terminal 2: client</span>
       </ul>
     </section>
 
-    <!-- 44 -->
+    <!-- 39 -->
     <section class="slide title-slide">
       <h1>Questions?</h1>
       <p class="intro" style="margin: 0; font-size: 24px">Thank you!</p>

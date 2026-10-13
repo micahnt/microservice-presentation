@@ -2,7 +2,7 @@
 
 Companion to `microservices-slides.md`. Each section below matches one slide. The number in brackets is the target **clock time when you leave that slide**, so you can check your pace as you go.
 
-Speaking pace assumed: about 120 words per minute, with short pauses on code and diagram slides. The spoken text is about 5,250 words (about 44 minutes); the demo and pauses fill the rest. Lines in *italics* are stage directions, not things to say.
+Speaking pace assumed: about 120 words per minute, with short pauses on code and diagram slides. The spoken text is about 4,950 words (about 41 minutes); the demo, pauses and a longer Q&A fill the rest. Lines in *italics* are stage directions, not things to say.
 
 ---
 
@@ -12,19 +12,17 @@ Speaking pace assumed: about 120 words per minute, with short pauses on code and
 |---|---|---|---|
 | Opening | 1–2 | 2:00 | 2:00 |
 | Part 1: Introduction to Microservices & DDD | 3–15 | 16:00 | 18:00 |
-| Part 2: Building a microservice (short) | 16–19 | 5:00 | 23:00 |
-| Part 3: Synchronous communication (REST & gRPC) | 20–26 | 10:00 | 33:00 |
-| Part 4: Asynchronous communication & message brokers | 27–33 | 10:00 | 43:00 |
-| Part 5: API Gateway & BFF | 34–39 | 7:00 | 50:00 |
-| Demo | 40–41 | 6:00 | 56:00 |
-| Summary and Q&A | 42–44 | 4:00 | 60:00 |
+| Part 2: Synchronous communication (REST & gRPC) | 16–21 | 10:00 | 28:00 |
+| Part 3: Asynchronous communication & message brokers | 22–28 | 10:00 | 38:00 |
+| Part 4: API Gateway & BFF | 29–34 | 8:00 | 46:00 |
+| Demo | 35–36 | 6:00 | 52:00 |
+| Summary and Q&A | 37–39 | 8:00 | 60:00 |
 
 **If you are running late**, these slides can be shortened to one sentence without losing the story:
 - Slide 7 (benefits and challenges): "The benefits are speed and independent scaling; the cost is complexity, network calls and harder consistency."
 - Slide 8 (when to use): "Use them for a real reason, never without DevOps, and never with a shared database."
-- Slide 19 (containerize): "Each service is packaged in a Docker image, and docker-compose runs them all together."
-- Slide 32 (messaging setup): "One shared extension method configures MassTransit for every service."
-- Slide 39 (choosing a method): it repeats Parts 3–5.
+- Slide 27 (messaging setup): "One shared extension method configures MassTransit for every service."
+- Slide 34 (choosing a method): it repeats Parts 2–4.
 
 **If you are more than 2 minutes late at the demo**, send only request 1 and point at the two logs; skip requests 2–4.
 
@@ -57,8 +55,6 @@ Everything I show comes from one real project, called EShop Microservices. It's 
 Here is the plan.
 
 We start with about sixteen minutes on microservices and Domain-Driven Design: monolith versus microservices, design principles, and the DDD ideas of bounded contexts, entities and value objects.
-
-Then a short five minutes on what it takes to build one microservice.
 
 Then ten minutes each on synchronous and asynchronous communication, and seven minutes on API gateways and the Backends for Frontends pattern.
 
@@ -200,7 +196,7 @@ This is the reference system for the rest of the talk, so it's worth a few secon
 
 **Shopping.Web**, the client, only talks to the **YARP API gateway**. The gateway routes to **Catalog**, **Basket** and **Ordering**, each with its own database. Catalog and Basket use Vertical Slice architecture; Ordering uses Clean Architecture with the DDD model we just saw.
 
-And notice the two special connections. **Basket calls Discount over gRPC**: synchronous. And **Basket publishes an event to RabbitMQ**, which **Ordering consumes**: asynchronous. Those two arrows are Parts 3 and 4 of this talk. And the gateway in front of it all is Part 5. So everything we discuss from now on is somewhere on this one diagram.
+And notice the two special connections. **Basket calls Discount over gRPC**: synchronous. And **Basket publishes an event to RabbitMQ**, which **Ordering consumes**: asynchronous. Those two arrows are Parts 2 and 3 of this talk. And the gateway in front of it all is Part 4. So everything we discuss from now on is somewhere on this one diagram.
 
 *If someone compares this with the course's "Big Picture" slide: that picture also draws a gateway arrow to Discount. In the actual code, the YARP config only routes to Catalog, Basket, and Ordering.*
 
@@ -208,59 +204,25 @@ And notice the two special connections. **Basket calls Discount over gRPC**: syn
 
 ## Slide 16: Part 2 divider  `[18:15]`
 
-Before we connect services, let's look quickly at what one service looks like.
+Part two: synchronous communication.
 
-## Slide 17: From analysis to a running service  `[19:45]`
-
-Every service in this project follows the same five steps. **Domain analysis**: models, use cases, endpoints and data store. **Technical analysis**: architecture style, patterns and libraries. Then **develop** with ASP.NET Core Minimal APIs, **containerize** with a Dockerfile, and **orchestrate** with docker-compose.
-
-And every `Program.cs` has the same five-step shape: create the builder, register services in dependency injection, build, configure the pipeline, and run.
-
-On the right is the smallest possible microservice, the TodoApi from section 4. It registers an in-memory database, maps a GET and a POST endpoint, and runs. That's about fifteen lines, and it already meets the definition: its own process, one responsibility, its own data, and an HTTP API.
-
-## Slide 18: Catalog.API  `[21:30]`
-
-A real service needs more structure. Catalog uses **Vertical Slice Architecture**: one folder per feature, like CreateProduct or GetProductById, each holding its endpoint and its handler. To change one feature, you open one folder.
-
-On the right is the request flow: **HTTP, endpoint, MediatR, handler, database.** The endpoint only translates HTTP into a query and sends it through MediatR. The handler loads the product with Marten, and if it's missing, throws an exception that the global handler turns into a 404. The endpoint knows nothing about the database, and the handler knows nothing about HTTP.
-
-Two patterns are at work here. **CQRS**, Command Query Responsibility Segregation, means reads and writes are handled separately: `GetProductByIdQuery` is a query, it only reads; `CreateProductCommand` is a command, it changes data. And **MediatR** is an in-process mediator: the endpoint sends a message, and MediatR finds the one handler for it. A nice side effect is that MediatR can wrap every request in **pipeline behaviors**. EShop uses two: one validates every command with FluentValidation, and one logs every request. So no handler has to repeat that code.
-
-## Slide 19: Containerize and orchestrate  `[23:00]`
-
-Finally, we package it. The Dockerfile has several stages: build with the full .NET SDK image, then copy only the published output onto the small runtime image. The final image is smaller and contains no source code.
-
-On the right, docker-compose runs the service next to its database, with environment variables, a startup dependency, and a port mapping. Inside Docker, services find each other **by name**: the gateway calls `http://catalog.api:8080`. EShop runs eleven containers this way.
-
-The port mapping `6000:8080` means: port 8080 inside the container is reachable as 6000 on my laptop. Every service listens on 8080 inside its container, and gets its own 6000-range port outside. The eleven containers are five backing services, two PostgreSQL databases, Redis, SQL Server and RabbitMQ, plus six applications. One command starts them all.
-
-Now we have services. Let's connect them.
-
----
-
-## Slide 20: Part 3 divider  `[23:15]`
-
-Part three: synchronous communication.
-
-## Slide 21: Service-to-service communication  `[24:45]`
+## Slide 17: Service-to-service communication  `[20:45]`
 
 Services must cooperate in two ways: **ask for data**, like "what's the discount on this product?", or **trigger work**, like "create this order".
 
 There are two styles. **Synchronous**: the client sends a request and **waits**. HTTP with REST, gRPC, GraphQL. The catch is **temporal coupling**: both services must be up at the same moment.
 
-**Asynchronous**: the client sends a message and **does not wait**. The message goes to a broker, using a protocol like AMQP. If the receiver is down, the broker keeps the message.
+**Asynchronous**: the client sends a message and **does not wait**. The message goes to a broker, like RabbitMQ or Kafka, using a protocol like AMQP.
+
+There are two patterns. **One-to-one**, with a **queue**: each message is processed by exactly one consumer, like a task handed to one worker. **One-to-many**, with **publish/subscribe**: one message is delivered to every subscriber, like an announcement that several services can react to.
+
+And the coupling is **loose**. The sender only knows the broker, not the receiver. If the receiver is down, the broker **stores** the message and delivers it when the receiver is back, and it **retries** if processing fails. So the two services don't need to be up at the same time.
 
 EShop uses both. Basket asks Discount **synchronously with gRPC**, because it needs the price right now. The web app calls the APIs **with REST**. And Basket tells Ordering about a checkout **asynchronously**.
 
 The rule of thumb: **REST for public APIs, gRPC for internal calls, messaging for workflows that span services.**
 
-## Slide 22: REST over HTTP  `[25:45]`
-
-REST is the most familiar: resource URLs like `GET /products` and `POST /basket`, with JSON that every client understands.
-
-Calling REST with raw `HttpClient` means repetitive code: build the URL, serialize, send, deserialize. Shopping.Web avoids that with **Refit**. You write an **interface**, put the route on each method as an attribute, and Refit generates the implementation. Register it with `AddRefitClient`, point it at the gateway, and in a Razor page you just call `GetProduct(id)` like a normal C# method.
-
-## Slide 23: Introduction to Protobuf and gRPC  `[27:30]`
+## Slide 18: Introduction to Protobuf and gRPC  `[22:30]`
 
 Now gRPC, a remote procedure call framework from Google. It runs on **HTTP/2**, and the client calls a remote method **as if it were a local object**.
 
@@ -270,7 +232,7 @@ Two things people often miss. First, the numbers, like `= 1` and `= 2`, are **fi
 
 And in .NET, you don't write the networking code. The build **generates** a server base class and a client class from the `.proto` file.
 
-## Slide 24: gRPC server  `[28:45]`
+## Slide 19: gRPC server  `[23:45]`
 
 Here's the server. In `Program.cs`: `AddGrpc`, the database, and `MapGrpcService`.
 
@@ -278,7 +240,7 @@ Here's the server. In `Program.cs`: `AddGrpc`, the database, and `MapGrpcService
 
 Errors work differently too. Instead of returning an HTTP 404, the service throws an `RpcException` with a gRPC status code. For example, `DeleteDiscount` throws `StatusCode.NotFound` if the coupon doesn't exist, and `Create` and `Update` throw `InvalidArgument` for a bad request. The client receives those as typed exceptions. The other three methods, Create, Update and Delete, follow the same pattern: map the Protobuf message to the database model, save, and map back.
 
-## Slide 25: gRPC client  `[30:30]`
+## Slide 20: gRPC client  `[25:30]`
 
 And the client, in Basket. Three steps.
 
@@ -290,7 +252,7 @@ In fact, the Basket project doesn't even copy the file. It links to Discount's `
 
 **Three**: inject the client and call it. For each cart item, `GetDiscountAsync` with the product name, and subtract the coupon amount. It reads like a local method call, but it's a binary HTTP/2 request to another container.
 
-## Slide 26: When to use REST, when to use gRPC  `[33:00]`
+## Slide 21: When to use REST, when to use gRPC  `[28:00]`
 
 So when do you pick which? Let's go row by row.
 
@@ -306,11 +268,11 @@ And it's not an either-or choice for the whole system. Most real systems do exac
 
 ---
 
-## Slide 27: Part 4 divider  `[33:15]`
+## Slide 22: Part 3 divider  `[28:15]`
 
-Part four: asynchronous communication, and why it matters.
+Part three: asynchronous communication, and why it matters.
 
-## Slide 28: Basic event-driven architecture  `[35:00]`
+## Slide 23: Basic event-driven architecture  `[30:00]`
 
 Start with the problem on the left. Imagine creating an order using only synchronous calls. The gateway calls ShoppingCart. ShoppingCart calls Product and Pricing, then Order. Order calls Billing and Shipping. Six calls for one click. Every service must be up, latencies add up, and if Shipping is slow, everyone is slow.
 
@@ -322,7 +284,7 @@ An everyday analogy: a command is a phone call to one person, asking them to do 
 
 In EShop, checkout is the event. Basket doesn't call Ordering and say "create an order". It announces "this basket was checked out", and Ordering decides what that means for it.
 
-## Slide 29: Domain vs. integration events  `[36:30]`
+## Slide 24: Domain vs. integration events  `[31:30]`
 
 In DDD systems, there are two kinds of events.
 
@@ -332,7 +294,7 @@ An **integration event** crosses **between** services, through a message broker.
 
 The diagram shows how they chain together. The integration event arrives in Ordering, the handler creates an order, the order raises a domain event, and that domain event's handler could publish a new integration event, `OrderCreatedIntegrationEvent`, for other services like shipping. In this project, that last step is behind a feature flag and switched off.
 
-## Slide 30: The role of a message broker  `[38:15]`
+## Slide 25: The role of a message broker  `[33:15]`
 
 So what does the broker in the middle actually do? It **receives** messages, **stores** them until consumers are ready, even if a consumer is down, **routes** them to the right queues, and **delivers and retries**. It decouples services in **time**, because they don't need to be up together, and in **location**, because the producer doesn't need the consumer's address.
 
@@ -342,7 +304,7 @@ On top of RabbitMQ, EShop uses **MassTransit**, a .NET library that creates the 
 
 RabbitMQ also comes with a management web UI, on port 15672 in our setup. It shows every exchange, queue and message rate, and it's the first place to look when a message seems to be lost.
 
-## Slide 31: Basic pub/sub pattern  `[39:45]`
+## Slide 26: Basic pub/sub pattern  `[34:45]`
 
 The most common way to use a broker is **publish/subscribe**.
 
@@ -352,7 +314,7 @@ Compare it with a plain queue: a queue gives each message to **one** consumer; p
 
 On the right, the costs. Brokers usually deliver **at least once**, so a message can arrive twice, and consumers must be **idempotent**: processing it twice must be safe. Order isn't guaranteed. The broker becomes critical, so it must be highly available. And there's **eventual consistency**: the order appears a moment after checkout, not instantly.
 
-## Slide 32: Messaging setup  `[41:00]`
+## Slide 27: Messaging setup  `[36:00]`
 
 Here's how EShop sets this up. On the left is the **contract**: an `IntegrationEvent` base record, and `BasketCheckoutEvent` with user name, total price, address and payment. Both Basket and Ordering reference this same class.
 
@@ -360,7 +322,7 @@ On the right is one shared extension method, `AddMessageBroker`. It configures M
 
 Two details. `ConfigureEndpoints` tells MassTransit to create a queue for every consumer it found, and bind it to the right exchange, so we never declare queues by hand. And the broker address comes from configuration: locally `amqp://localhost:5672`, and inside Docker `amqp://ecommerce-mq:5672`, set by an environment variable in docker-compose. Same code, different environment.
 
-## Slide 33: Publish and consume  `[43:00]`
+## Slide 28: Publish and consume  `[38:00]`
 
 And both ends of the checkout.
 
@@ -374,11 +336,11 @@ One question worth asking about this handler: what if `Publish` succeeds, but de
 
 ---
 
-## Slide 34: Part 5 divider  `[43:15]`
+## Slide 29: Part 4 divider  `[38:15]`
 
 Last topic: the API gateway, and the Backends for Frontends pattern.
 
-## Slide 35: The role of an API Gateway  `[44:45]`
+## Slide 30: The role of an API Gateway  `[39:45]`
 
 Without a gateway, every client must know every service's address, and every service must handle authentication, SSL and rate limiting on its own.
 
@@ -388,7 +350,7 @@ On the right is the pipeline a request passes through: validation, IP allowlisti
 
 The risk: one gateway for everything can become a **bottleneck** and a **single point of failure**. Which leads to the next pattern.
 
-## Slide 36: Backends for Frontends  `[46:00]`
+## Slide 31: Backends for Frontends  `[41:00]`
 
 **Backends for Frontends**, or BFF, means **one gateway per type of client**, instead of one gateway for everyone.
 
@@ -396,7 +358,7 @@ Why? Different clients need different things. A phone screen needs less data tha
 
 EShop has only one client, Shopping.Web, so one gateway is enough. You'd add BFFs when, say, a mobile app arrives.
 
-## Slide 37: Introduction to YARP  `[47:30]`
+## Slide 32: Introduction to YARP  `[42:30]`
 
 EShop implements its gateway with **YARP**, which stands for "Yet Another Reverse Proxy". It's a reverse-proxy library from Microsoft, built on ASP.NET Core. It supports HTTP/2, gRPC and WebSockets, load balancing and health checks, and it plugs into normal ASP.NET Core middleware, like the rate limiter.
 
@@ -404,7 +366,7 @@ The code on the left is the *entire* EShop gateway: add the reverse proxy, load 
 
 On the right is the config. A **route** matches a path, like `/catalog-service/` plus anything, and points to a **cluster**. The **transform** removes the prefix. The cluster says where the service lives: `catalog.api:8080`. So `/catalog-service/products` becomes `catalog.api:8080/products`. And the ordering route also applies the rate limiting policy.
 
-## Slide 38: Ocelot, and YARP vs. Ocelot  `[49:00]`
+## Slide 33: Ocelot, and YARP vs. Ocelot  `[44:00]`
 
 The other well-known .NET option is **Ocelot**, an open-source API gateway library configured with an `ocelot.json` file. EShop doesn't use it, so at the bottom of the slide I've written the same Catalog route for Ocelot, just for comparison. An **upstream** path is what the client calls; a **downstream** path and host are where Ocelot forwards it. The startup code is just `AddOcelot` and `UseOcelot`.
 
@@ -412,9 +374,17 @@ How do they compare? **YARP** comes from Microsoft and is a reverse-proxy **tool
 
 Both implement the gateway routing pattern. YARP is the one this course uses.
 
-## Slide 39: Choosing an invocation method  `[50:00]`
+## Slide 34: Choosing an invocation method  `[46:00]`
 
-Let's put it all together. **REST** for client-facing APIs. **gRPC** for fast internal calls with strict contracts. **Messaging** for cross-service workflows and decoupling. And the **API gateway** as the single front door.
+Let's put it all together. The table reads left to right: the method, its style, what it's best for, and where EShop uses it.
+
+**REST over HTTP**: synchronous, with JSON. Best for public and client-facing APIs, because every client understands it. In EShop, that's the web app going through the gateway to Catalog, Basket and Ordering.
+
+**gRPC**: also synchronous, but binary, over HTTP/2. Best for fast internal calls where both sides share a strict contract. In EShop, that's Basket asking Discount for the price of every item, which is exactly what the demo will show.
+
+**Messaging with RabbitMQ**: asynchronous, with events. Best for workflows that cross services, when you want decoupling, or fan-out to several consumers. In EShop, that's checkout: Basket publishes, Ordering consumes.
+
+And the **API gateway with YARP**: synchronous, a reverse proxy. It's not a way for services to talk to each other, but the single entry point for clients, where routing, rate limiting and security live. In EShop, Shopping.Web only ever calls YarpApiGateway.
 
 Real systems mix them. The advice to take home: keep synchronous call chains **short**, and use messaging for anything that doesn't need an immediate answer.
 
@@ -424,7 +394,7 @@ Enough slides. Let's see it running.
 
 ---
 
-## Slide 40: Demo setup  `[51:00]`
+## Slide 35: Demo setup  `[47:00]`
 
 *(Both services are already running in two terminals, side by side, so both logs are visible. VS Code shows `demo.http`.)*
 
@@ -436,7 +406,7 @@ Both projects use the same `discount.proto` file. The server project generates t
 
 And one difference from the course: here the client calls `localhost:5002` over plain HTTP/2, without TLS, so we don't need the development certificate workaround from the earlier slide.
 
-## Slide 41: Demo steps  `[56:00]`
+## Slide 36: Demo steps  `[52:00]`
 
 *[Send request 1 in `demo.http`: store a basket with three items.]*
 
@@ -458,13 +428,13 @@ Now let's change the data on the other side. This request goes to Basket, and Ba
 
 And if I store the Huawei basket again: **600**. Basket didn't change; the Discount service did, and Basket picked up the new price on the next call.
 
-*Optional, if you have a minute: stop Discount.Grpc (Ctrl+C) and send request 1 again. The request fails with a server error, because the gRPC call is synchronous: Basket can't finish without Discount. Say: "That's temporal coupling, from Part 3, and it's exactly why checkout uses an event instead of a direct call." Then restart Discount.Grpc.*
+*Optional, if you have a minute: stop Discount.Grpc (Ctrl+C) and send request 1 again. The request fails with a server error, because the gRPC call is synchronous: Basket can't finish without Discount. Say: "That's temporal coupling, from Part 2, and it's exactly why checkout uses an event instead of a direct call." Then restart Discount.Grpc.*
 
 That's gRPC in practice: one contract, generated code on both sides, and a remote call that reads like a local one.
 
 ---
 
-## Slide 42: Summary  `[57:15]`
+## Slide 37: Summary  `[53:15]`
 
 Let's wrap up.
 
@@ -476,11 +446,11 @@ For **synchronous** communication, **REST** for client-facing APIs and **gRPC wi
 
 And in the demo we saw the synchronous part live: Basket calling Discount over gRPC, with one shared contract.
 
-## Slide 43: References  `[57:30]`
+## Slide 38: References  `[53:30]`
 
 The course, the slides and all the code are listed here, from section 4 up to section 20, the complete system. For DDD, Eric Evans' book is the original, and Microsoft's free e-book on .NET microservices architecture is the best next step. And the gRPC demo I just ran is in the `grpc-demo` folder, with a README that explains how to run it.
 
-## Slide 44: Questions  `[60:00]`
+## Slide 39: Questions  `[60:00]`
 
 That's all from me. Thank you! I'm happy to take your questions.
 
