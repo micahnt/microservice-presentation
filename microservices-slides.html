@@ -534,8 +534,8 @@
         </tr>
         <tr>
           <td>1</td>
-          <td><b>Introduction to Microservices &amp; DDD</b>: monolith vs. microservices, design principles, DDD, bounded contexts, entities, value objects</td>
-          <td>~16 min</td>
+          <td><b>Introduction to Microservices &amp; DDD</b>: monolith vs. microservices, design principles, DDD, bounded contexts</td>
+          <td>~14 min</td>
         </tr>
         <tr>
           <td>2</td>
@@ -545,22 +545,17 @@
         <tr>
           <td>3</td>
           <td><b>Asynchronous communication</b>: event-driven basics, message brokers (RabbitMQ), pub/sub</td>
-          <td>~10 min</td>
+          <td>~9 min</td>
         </tr>
         <tr>
           <td>4</td>
           <td><b>API Gateway &amp; BFF</b>: role of a gateway, Backends for Frontends, YARP and Ocelot</td>
-          <td>~8 min</td>
-        </tr>
-        <tr>
-          <td>5</td>
-          <td><b>Demo</b>: gRPC call, Basket → Discount (runs locally, no Docker)</td>
           <td>~6 min</td>
         </tr>
         <tr>
-          <td>6</td>
+          <td>5</td>
           <td>Summary and Q&amp;A</td>
-          <td>~8 min</td>
+          <td>~20 min</td>
         </tr>
       </table>
     </section>
@@ -889,120 +884,6 @@
 
     <!-- 13 -->
     <section class="slide">
-      <h1>Tactical DDD: entities, value objects, aggregates</h1>
-      <table class="small">
-        <tr>
-          <th style="width: 240px"></th>
-          <th>Entity</th>
-          <th>Value object</th>
-        </tr>
-        <tr>
-          <td>Identified by</td>
-          <td>Its <b>ID</b></td>
-          <td>Its <b>values</b> (no ID)</td>
-        </tr>
-        <tr>
-          <td>Two with the same data are…</td>
-          <td>Still <b>different</b> objects</td>
-          <td><b>Equal</b></td>
-        </tr>
-        <tr>
-          <td>Changes over time?</td>
-          <td>Yes, it has a <b>lifecycle</b></td>
-          <td>No, it's <b>immutable</b>: replace it instead</td>
-        </tr>
-        <tr>
-          <td>In EShop Ordering</td>
-          <td><code>Order</code>, <code>OrderItem</code>, <code>Customer</code>, <code>Product</code></td>
-          <td><code>Address</code>, <code>Payment</code>, <code>OrderName</code>, <code>OrderId</code></td>
-        </tr>
-      </table>
-      <div class="row" style="align-items: stretch">
-        <div class="box soft" style="flex: 2">
-          <div class="hd">Order aggregate</div>
-          <div class="flow center" style="margin-bottom: 10px"><span class="chip solid">Order · aggregate root</span></div>
-          <div class="g2">
-            <div class="stack" style="gap: 6px; align-items: center">
-              <span class="cap">Value objects</span>
-              <div class="flow center" style="flex-wrap: wrap"><span class="chip teal">OrderId</span><span class="chip teal">OrderName</span><span class="chip teal">Address ×2</span><span class="chip teal">Payment</span></div>
-            </div>
-            <div class="stack" style="gap: 6px; align-items: center">
-              <span class="cap">Entities</span>
-              <div class="flow center"><span class="chip">OrderItem × N</span></div>
-              <span class="note">changed only through <code>Order.Add</code> / <code>Order.Remove</code></span>
-            </div>
-          </div>
-        </div>
-        <div class="box teal" style="flex: 1">
-          <div class="hd">Aggregate</div>
-          <p class="center">A cluster of entities and value objects treated as <b>one unit of consistency</b>. Its main entity, the <b>aggregate root</b>, is the only entry point.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- 14 -->
-    <section class="slide">
-      <h1>Entities and value objects in the Ordering code</h1>
-      <div class="g2 fill">
-        <div class="stack">
-          <pre class="code sm"><span class="c">// Entity: identity + audit fields</span>
-<span class="k">public abstract class</span> Entity&lt;T&gt; : IEntity&lt;T&gt;
-{
-    <span class="k">public</span> T Id { get; set; }
-    <span class="k">public</span> DateTime? CreatedAt { get; set; }
-    <span class="k">public</span> DateTime? LastModified { get; set; }
-    <span class="c">// ...</span>
-}
-
-<span class="c">// Aggregate root: owns its items, raises events</span>
-<span class="k">public class</span> Order : Aggregate&lt;OrderId&gt;
-{
-    <span class="k">private readonly</span> List&lt;OrderItem&gt; _orderItems = new();
-    <span class="k">public</span> IReadOnlyList&lt;OrderItem&gt; OrderItems
-        =&gt; _orderItems.AsReadOnly();
-    <span class="k">public</span> Address ShippingAddress { get; <span class="k">private</span> set; }
-
-    <span class="k">public void</span> Add(ProductId productId, <span class="k">int</span> quantity, <span class="k">decimal</span> price)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(quantity);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(price);
-        _orderItems.Add(<span class="k">new</span> OrderItem(Id, productId, quantity, price));
-    }
-}</pre>
-        </div>
-        <div class="stack">
-          <pre class="code sm"><span class="c">// Value object: a C# record = equality by value</span>
-<span class="k">public record</span> Address
-{
-    <span class="k">public string</span> FirstName { get; } = default!;
-    <span class="k">public string</span> AddressLine { get; } = default!;
-    <span class="k">public string</span> Country { get; } = default!;
-    <span class="c">// ...</span>
-    <span class="k">public static</span> Address Of(<span class="k">string</span> firstName, ...,
-        <span class="k">string</span> emailAddress, <span class="k">string</span> addressLine, ...)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(emailAddress);
-        ArgumentException.ThrowIfNullOrWhiteSpace(addressLine);
-        <span class="k">return new</span> Address(firstName, ...);
-    }
-}
-
-<span class="c">// Strongly typed ID: also a value object</span>
-<span class="k">public record</span> OrderId
-{
-    <span class="k">public</span> Guid Value { get; }
-    <span class="k">public static</span> OrderId Of(Guid value) =&gt;
-        value == Guid.Empty
-            ? <span class="k">throw new</span> DomainException(<span class="s">"OrderId cannot be empty."</span>)
-            : <span class="k">new</span> OrderId(value);
-}</pre>
-        </div>
-      </div>
-      <p class="note">Simplified from <code>Ordering.Domain</code>. Entities are created with <code>Create(...)</code>, value objects with <code>Of(...)</code>, and both validate their input.</p>
-    </section>
-
-    <!-- 15 -->
-    <section class="slide">
       <h1>The big picture: EShop microservices</h1>
       <div class="fill" style="display: grid; grid-template-columns: 190px 50px 150px 50px minmax(0, 1fr) 120px 150px; grid-template-rows: 1fr 1fr 60px 1fr 1fr; gap: 0; align-items: center">
         <div class="cap" style="grid-column: 1; grid-row: 1; align-self: end; text-align: center">Client apps</div>
@@ -1052,17 +933,16 @@
           <p class="center note">+ MassTransit<br />event bus</p>
         </div>
       </div>
-      <p class="note">Based on the course's <i>Big Picture</i> slide. The gateway routes to Catalog, Basket, and Ordering (<code>appsettings.json</code>). Discount is reached only through Basket's gRPC client.</p>
     </section>
 
-    <!-- 16 -->
+    <!-- 14 -->
     <section class="slide divider">
       <div class="part">Part 2</div>
       <h1>Synchronous Communication: REST &amp; gRPC</h1>
       <p class="intro">Service-to-service calls where the caller waits for the answer</p>
     </section>
 
-    <!-- 17 -->
+    <!-- 15 -->
     <section class="slide big">
       <h1>Service-to-service communication: sync vs. async</h1>
       <p class="intro">Services must cooperate: ask for data ("what's the discount?") or trigger work ("create the order").</p>
@@ -1097,7 +977,7 @@
       <div class="callout">Rule of thumb: REST for public APIs · gRPC for internal calls · messaging for workflows that span services</div>
     </section>
 
-    <!-- 18 -->
+    <!-- 16 -->
     <section class="slide">
       <h1>Introduction to Protobuf and gRPC</h1>
       <div class="row fill">
@@ -1149,7 +1029,7 @@
       </div>
     </section>
 
-    <!-- 19 -->
+    <!-- 17 -->
     <section class="slide">
       <h1>gRPC in .NET: the server (Discount.Grpc)</h1>
       <div class="flow center">
@@ -1179,7 +1059,7 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
 }</pre>
     </section>
 
-    <!-- 20 -->
+    <!-- 18 -->
     <section class="slide">
       <h1>gRPC in .NET: the client (Basket.API calls Discount)</h1>
       <div class="stack fill" style="gap: 10px">
@@ -1219,7 +1099,7 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
       </div>
     </section>
 
-    <!-- 21 -->
+    <!-- 19 -->
     <section class="slide">
       <h1>When to use REST, when to use gRPC</h1>
       <table class="small">
@@ -1272,14 +1152,14 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
       <div class="callout">In EShop: REST behind the gateway for the web app · gRPC for Basket → Discount, once per cart item</div>
     </section>
 
-    <!-- 22 -->
+    <!-- 20 -->
     <section class="slide divider">
       <div class="part">Part 3</div>
       <h1>Asynchronous Communication &amp; Message Brokers</h1>
       <p class="intro">Events, brokers, and publish/subscribe</p>
     </section>
 
-    <!-- 23 -->
+    <!-- 21 -->
     <section class="slide">
       <h1>Basic event-driven architecture</h1>
       <div class="g2">
@@ -1319,55 +1199,7 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
       </div>
     </section>
 
-    <!-- 24 -->
-    <section class="slide">
-      <h1>Domain events vs. integration events</h1>
-      <table class="small">
-        <tr>
-          <th style="width: 170px"></th>
-          <th>Domain event</th>
-          <th>Integration event</th>
-        </tr>
-        <tr>
-          <td>Scope</td>
-          <td><b>Inside</b> one service / bounded context</td>
-          <td><b>Between</b> services</td>
-        </tr>
-        <tr>
-          <td>Transport</td>
-          <td>In-process, in-memory (MediatR)</td>
-          <td><b>Message broker</b> (RabbitMQ)</td>
-        </tr>
-        <tr>
-          <td>EShop example</td>
-          <td><code>OrderCreatedEvent</code>, raised by the <code>Order</code> aggregate</td>
-          <td><code>BasketCheckoutEvent</code>, from Basket to Ordering</td>
-        </tr>
-      </table>
-      <div class="row fill" style="align-items: center">
-        <div class="box" style="flex: 0 0 190px">
-          <div class="hd">Basket</div>
-          <p class="center note">ShoppingCart checkout</p>
-        </div>
-        <div class="stack" style="flex: 0 0 190px; align-items: center; gap: 4px">
-          <span class="lbl">BasketCheckoutEvent</span><svg class="arr" style="width: 170px"><use href="#ar" /></svg><span class="chip red">RabbitMQ</span><span class="note">integration event</span>
-        </div>
-        <div class="box soft">
-          <div class="hd">Ordering service</div>
-          <div class="flow center">
-            <span class="chip">Consumer</span><svg class="arr"><use href="#ar" /></svg><span class="chip">Order.Create(...)</span><svg class="arr"><use href="#ar" /></svg><span class="chip teal">OrderCreatedEvent<small>domain event · MediatR</small></span>
-          </div>
-          <div class="flow center" style="margin-top: 10px">
-            <svg class="arr down"><use href="#ard" /></svg>
-          </div>
-          <div class="flow center">
-            <span class="chip dashed grey">OrderCreatedIntegrationEvent<small>could be published (feature flag, off)</small></span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- 25 -->
+    <!-- 22 -->
     <section class="slide">
       <h1>The role of a message broker (RabbitMQ)</h1>
       <div class="flow center">
@@ -1415,7 +1247,7 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
       </div>
     </section>
 
-    <!-- 26 -->
+    <!-- 23 -->
     <section class="slide">
       <h1>Basic pub/sub pattern</h1>
       <div class="row" style="align-items: center">
@@ -1466,7 +1298,7 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
       </div>
     </section>
 
-    <!-- 27 -->
+    <!-- 24 -->
     <section class="slide">
       <h1>Messaging setup: the shared BuildingBlocks.Messaging library</h1>
       <div class="g2 fill">
@@ -1516,7 +1348,7 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
       </div>
     </section>
 
-    <!-- 28 -->
+    <!-- 25 -->
     <section class="slide">
       <h1>Publish (Basket) → consume (Ordering)</h1>
       <div class="row fill" style="align-items: stretch">
@@ -1574,14 +1406,14 @@ services.AddMessageBroker(configuration,
       <div class="callout">Basket has no idea Ordering exists. It only publishes an event.</div>
     </section>
 
-    <!-- 29 -->
+    <!-- 26 -->
     <section class="slide divider">
       <div class="part">Part 4</div>
       <h1>API Gateway &amp; BFF</h1>
       <p class="intro">One front door for all clients, or one per kind of client</p>
     </section>
 
-    <!-- 30 -->
+    <!-- 27 -->
     <section class="slide">
       <h1>The role of an API Gateway</h1>
       <p class="intro">Without a gateway, every client must know every service's address, and every service handles auth, SSL and rate limiting itself.</p>
@@ -1614,7 +1446,7 @@ services.AddMessageBroker(configuration,
       </div>
     </section>
 
-    <!-- 31 -->
+    <!-- 28 -->
     <section class="slide big">
       <h1>Pattern: Backends for Frontends (BFF)</h1>
       <p class="intro">One gateway per type of client, instead of one gateway for everyone.</p>
@@ -1641,15 +1473,10 @@ services.AddMessageBroker(configuration,
             <li>Each frontend team can <b>own and change its own BFF</b></li>
           </ul>
         </div>
-        <div class="box teal left">
-          <div class="hd">In EShop</div>
-          <p>EShop has <b>one</b> client (Shopping.Web), so one gateway is enough.</p>
-          <p style="margin-top: 10px">Add BFFs when a second kind of client, such as a mobile app, arrives.</p>
-        </div>
       </div>
     </section>
 
-    <!-- 32 -->
+    <!-- 29 -->
     <section class="slide">
       <h1>Introduction to YARP (Yet Another Reverse Proxy)</h1>
       <div class="row fill">
@@ -1704,7 +1531,7 @@ app.MapReverseProxy();</pre>
       </div>
     </section>
 
-    <!-- 33 -->
+    <!-- 30 -->
     <section class="slide">
       <h1>Introduction to Ocelot, and YARP vs. Ocelot</h1>
       <p class="intro">Ocelot is an open-source API gateway library for .NET, configured with an <code>ocelot.json</code> file.</p>
@@ -1739,11 +1566,6 @@ app.MapReverseProxy();</pre>
           <td>From ASP.NET Core middleware</td>
           <td>Mostly through Ocelot's own config</td>
         </tr>
-        <tr>
-          <td>In EShop</td>
-          <td style="color: var(--teal); font-weight: 700">✓ Used</td>
-          <td style="color: var(--red); font-weight: 700">✗ Not used</td>
-        </tr>
       </table>
       <div class="g2">
         <pre class="code sm">{ <span class="s">"Routes"</span>: [ {
@@ -1764,146 +1586,7 @@ app.Run();</pre>
       </div>
     </section>
 
-    <!-- 34 -->
-    <section class="slide">
-      <h1>Choosing an invocation method</h1>
-      <table>
-        <tr>
-          <th>Method</th>
-          <th>Style</th>
-          <th>Best for</th>
-          <th>EShop usage</th>
-        </tr>
-        <tr>
-          <td>REST / HTTP</td>
-          <td>Sync, JSON</td>
-          <td>Public and client-facing APIs</td>
-          <td>Web → Gateway → Catalog, Basket, Ordering</td>
-        </tr>
-        <tr>
-          <td>gRPC</td>
-          <td>Sync, binary, HTTP/2</td>
-          <td>Fast internal calls with strict contracts</td>
-          <td>Basket → Discount (price calculation)</td>
-        </tr>
-        <tr>
-          <td>Messaging (RabbitMQ)</td>
-          <td>Async, events</td>
-          <td>Cross-service workflows, decoupling, fan-out</td>
-          <td>Basket → Ordering (checkout)</td>
-        </tr>
-        <tr>
-          <td>API Gateway (YARP)</td>
-          <td>Sync, reverse proxy</td>
-          <td>Single entry point, rate limiting, security</td>
-          <td>Shopping.Web → YarpApiGateway</td>
-        </tr>
-      </table>
-      <div class="callout">Real systems mix these methods. Keep sync call chains short; use messaging for anything that doesn't need an immediate answer.</div>
-      <div class="g2">
-        <div class="box">
-          <div class="hd">Need the answer now?</div>
-          <p class="center">Basket needs the discount to show a price → <b>synchronous</b></p>
-        </div>
-        <div class="box teal">
-          <div class="hd">Don't need it now?</div>
-          <p class="center">Basket doesn't need the order number to finish checkout → <b>event</b></p>
-        </div>
-      </div>
-    </section>
-
-    <!-- 35 -->
-    <section class="slide">
-      <h1>Demo: gRPC call, Basket → Discount</h1>
-      <p class="intro">Sections 10–12 only. Runs on a laptop with the .NET 8 SDK: no Docker, no database server.</p>
-      <div class="flow center" style="margin-top: 6px">
-        <span class="chip grey">curl / demo.http</span>
-        <div class="stack" style="gap: 2px; align-items: center">
-          <span class="lbl">REST · JSON</span><svg class="arr long"><use href="#ar" /></svg>
-        </div>
-        <div class="box" style="flex: 0 0 220px; padding: 10px 14px">
-          <div class="hd">Basket.API</div>
-          <p class="center note">:5001 · gRPC client<br />in-memory carts</p>
-        </div>
-        <div class="stack" style="gap: 2px; align-items: center">
-          <span class="lbl">gRPC · HTTP/2 + Protobuf</span><svg class="arr" style="width: 170px"><use href="#ar" /></svg><span class="lbl">GetDiscount · CreateDiscount</span>
-        </div>
-        <div class="box teal" style="flex: 0 0 220px; padding: 10px 14px">
-          <div class="hd">Discount.Grpc</div>
-          <p class="center note">:5002 · gRPC server<br />EF Core</p>
-        </div>
-        <svg class="arr"><use href="#ar" /></svg>
-        <span class="chip grey">SQLite</span>
-      </div>
-      <div class="g2">
-        <div class="stack">
-          <div class="cap">One contract, two generated sides</div>
-          <pre class="code"><span class="c">&lt;!-- Discount.Grpc.csproj --&gt;</span>
-&lt;Protobuf Include=<span class="s">"Protos\discount.proto"</span> GrpcServices=<span class="s">"Server"</span> /&gt;
-
-<span class="c">&lt;!-- Basket.API.csproj: the same file, linked --&gt;</span>
-&lt;Protobuf Include=<span class="s">"..\Discount.Grpc\Protos\discount.proto"</span>
-          GrpcServices=<span class="s">"Client"</span> /&gt;</pre>
-        </div>
-        <div class="stack">
-          <div class="cap">Run (two terminals, in grpc-demo)</div>
-          <pre class="code">dotnet run --project Discount.Grpc   <span class="c"># terminal 1: server</span>
-dotnet run --project Basket.API      <span class="c"># terminal 2: client</span></pre>
-          <div class="callout teal" style="font-size: 16px">Seeded coupons: IPhone X −150 · Samsung 10 −100 · anything else: "No Discount" (0)</div>
-        </div>
-      </div>
-      <p class="note">Simplified from the course: Basket keeps carts in memory (no Marten, Redis, PostgreSQL) and calls Discount over plain HTTP/2, so no dev certificate is needed.</p>
-    </section>
-
-    <!-- 36 -->
-    <section class="slide">
-      <h1>Demo steps</h1>
-      <table>
-        <tr>
-          <th style="width: 44px">#</th>
-          <th>Request (demo.http)</th>
-          <th>gRPC method called</th>
-          <th>Result</th>
-        </tr>
-        <tr>
-          <td>1</td>
-          <td><code>POST /basket</code>: IPhone X 950 · Samsung 10 840 ×2 · Huawei Plus 650</td>
-          <td><code>GetDiscount</code> ×3</td>
-          <td><b>800 · 740 · 650</b></td>
-        </tr>
-        <tr>
-          <td>2</td>
-          <td><code>GET /basket/swn</code></td>
-          <td>(none)</td>
-          <td>Saved, total 2,930</td>
-        </tr>
-        <tr>
-          <td>3</td>
-          <td><code>POST /discount</code>: Huawei Plus, amount 50</td>
-          <td><code>CreateDiscount</code></td>
-          <td>New coupon, id 3</td>
-        </tr>
-        <tr>
-          <td>4</td>
-          <td><code>POST /basket</code>: Huawei Plus 650 again</td>
-          <td><code>GetDiscount</code></td>
-          <td><b>600</b></td>
-        </tr>
-      </table>
-      <div class="g2">
-        <div class="box teal">
-          <div class="hd">Discount.Grpc log (server)</div>
-          <p class="center" style="font-size: 15px"><code>Discount is retrieved for ProductName : IPhone X, Amount : 150</code><br /><code>Discount is successfully created. ProductName : Huawei Plus</code></p>
-        </div>
-        <div class="box">
-          <div class="hd">Basket.API log (client)</div>
-          <p class="center" style="font-size: 15px"><code>gRPC GetDiscount(IPhone X) returned amount 150</code><br /><code>gRPC GetDiscount(Huawei Plus) returned amount 0</code></p>
-        </div>
-      </div>
-      <div class="callout">Optional: stop Discount.Grpc and send request 1 again: it fails. A synchronous call means temporal coupling.</div>
-    </section>
-
-    <!-- 37 -->
+    <!-- 31 -->
     <section class="slide">
       <h1>Summary</h1>
       <div class="g2 fill" style="grid-template-rows: repeat(3, 1fr)">
@@ -1913,7 +1596,7 @@ dotnet run --project Basket.API      <span class="c"># terminal 2: client</span>
         </div>
         <div class="box">
           <div class="hd">DDD</div>
-          <p class="center"><b>Where to split</b> (bounded contexts, ubiquitous language) and <b>how to model</b> each service (entities, value objects, aggregates)</p>
+          <p class="center"><b>Where to split</b> (bounded contexts, ubiquitous language)</p>
         </div>
         <div class="box teal">
           <div class="hd">Synchronous</div>
@@ -1927,11 +1610,10 @@ dotnet run --project Basket.API      <span class="c"># terminal 2: client</span>
           <div class="hd">API Gateway &amp; BFF</div>
           <p class="center">YARP or Ocelot as the single entry point; BFF when you have several kinds of clients</p>
         </div>
-        <div class="callout teal" style="display: flex; align-items: center; justify-content: center">EShop combines all of these in a single checkout flow</div>
       </div>
     </section>
 
-    <!-- 38 -->
+    <!-- 32 -->
     <section class="slide">
       <h1>References</h1>
       <ul style="font-size: 19px; line-height: 1.75">
@@ -1944,7 +1626,7 @@ dotnet run --project Basket.API      <span class="c"># terminal 2: client</span>
       </ul>
     </section>
 
-    <!-- 39 -->
+    <!-- 33 -->
     <section class="slide title-slide">
       <h1>Questions?</h1>
       <p class="intro" style="margin: 0; font-size: 24px">Thank you!</p>

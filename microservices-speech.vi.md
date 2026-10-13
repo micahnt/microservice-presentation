@@ -6,12 +6,11 @@ hnay e sẽ thuyết trình về microservice. Mình sẽ đi qua bốn phần. 
 // coi lại
 Đây là kế hoạch của buổi hôm nay.
 
-Mình bắt đầu với về microservices và Domain-Driven Design: monolith so với microservices, các design principle, và các ý tưởng của DDD như bounded context, entity và value object.
-
+Mình bắt đầu với về microservices và Domain-Driven Design: monolith so với microservices, các design principle, và ý tưởng bounded context của DDD.
 
 Tiếp theo là synchronous communication, asynchronous communication, cho API gateway và pattern Backends for Frontends.
 
-Rồi một live demo ngắn về lời gọi gRPC giữa Basket và Discount, chạy ngay trên laptop của mình, không cần Docker. Và mình sẽ kết thúc bằng phần tóm tắt và câu hỏi của mọi người. Nếu có chỗ nào chưa rõ, mọi người cứ hỏi ngay nhé.
+Và mình sẽ kết thúc bằng phần tóm tắt và câu hỏi của mọi người. Nếu có chỗ nào chưa rõ, mọi người cứ hỏi ngay nhé.
 
 ---
 
@@ -59,7 +58,6 @@ Và về **team fit**, monolith phù hợp với team nhỏ hoặc team mới. M
 
 Không bên nào là "tốt hơn". Với nhiều hệ thống, monolith là một lựa chọn hoàn toàn hợp lý. (vd Dự án mới khởi nghiệp (MVP), Team size tầm 15-20 người,...)
 
-
 ## Slide 7: Benefits and challenges  `[8:15]`
 
 Đây là pros cons.
@@ -94,13 +92,13 @@ Nếu đã chọn microservices, sáu nguyên tắc này giúp mình tránh bị
 
 ## Slide 10: Introduction to DDD  `[12:15]`
 
-Giờ, câu hỏi khó nhất trong microservices là: **mình vạch ranh giới giữa các service ở đâu?** Đó là chỗ Domain-Driven Design xuất hiện.
+Có 1 câu hỏi trong microservices là: **mình vạch ranh giới giữa các service ở đâu?** Đó là chỗ Domain-Driven Design xuất hiện.
 
-DDD được **Eric Evans** giới thiệu trong cuốn sách năm 2003 của ông. Nó không phải một công nghệ hay một framework. Nó là một cách **mô hình hóa phần mềm xoay quanh nghiệp vụ**. Ý tưởng cốt lõi rất đơn giản: chia một vấn đề phức tạp thành các phần nhỏ hơn, và cho mỗi phần một model riêng.
+DDD được **Eric Evans** giới thiệu trong cuốn sách năm 2003 của ông. Nó không phải một công nghệ hay một framework. Nó là một cách **mô hình hóa phần mềm xoay quanh nghiệp vụ**. Ý tưởng cốt lõi rất đơn giản: chia một vấn đề phức tạp thành các phần nhỏ hơn, và cho mỗi phần một model riêng (model ở đây là Data Model - Database Schema & Business Logic - Domain Logic).
 
 DDD có hai nửa. **Strategic DDD** là bức tranh lớn: hiểu business domain, tìm ra các subdomain và bounded context, và vẽ ra mối quan hệ giữa chúng. Nó cho mình biết **tách ở đâu** thành các microservice. **Tactical DDD** làm việc bên trong một service: các pattern như entity, value object và aggregate. Nó cho mình biết **xây dựng** model của từng service **như thế nào**.
 
-Mình sẽ đi qua cả hai: strategic trước, tactical sau.
+E sẽ chủ yếu đi qua phần strategic vì nó liên quan đến việc thiết kế kiến trúc microservices, phần Tactical liên quan đến implement/code
 
 ## Slide 11: DDD core concepts  `[13:30]`
 
@@ -108,61 +106,43 @@ Năm khái niệm mà mọi cuộc trò chuyện về DDD đều nhắc đến.
 
 **Domain** là vấn đề nghiệp vụ mà phần mềm giải quyết: với mình là e-commerce. **Subdomain** là một mảng chuyên môn bên trong nó: product catalog, shopping cart, discount, order.
 
-**Ubiquitous language** là bộ từ vựng chung được dùng bởi các domain expert *và cả* trong code. Nếu phía business nói "order item" và "shipping address", thì code cũng gọi là `OrderItem` và `ShippingAddress`, chứ không phải "row" hay "data object". Cách này loại bỏ cả một lớp hiểu lầm.
+**Ubiquitous language** là bộ từ vựng chung được dùng bởi các domain expert *và cả* trong code. Nếu phía business nói "order item" và "shipping address", thì code cũng gọi là `OrderItem` và `ShippingAddress`, chứ không phải đặt biến tên khác. Cách này loại bỏ nhiều hiểu lầm.
 
-**Bounded context** là một ranh giới, bên trong đó áp dụng một model và một ngôn ngữ. Trong EShop: Catalog, Basket, Discount, và Ordering.
+**Bounded context** là một ranh giới logic, bên trong đó áp dụng một model và một ngôn ngữ. Trong EShop: Catalog, Basket, Discount, và Ordering.
 
-Và **context map** cho thấy các context liên hệ với nhau thế nào. Với mình: Basket hỏi Discount qua gRPC, và Basket thông báo cho Ordering bằng một event.
+Và **context map** cho thấy các context liên hệ với nhau thế nào. Vd: Basket gọi Discount qua gRPC, và Basket thông báo cho Ordering bằng một event.
 
 ## Slide 12: Bounded contexts → microservices  `[14:45]`
 
-Trong thực tế, làm sao tìm ra các bounded context? Khóa học dùng một phương pháp đơn giản. Bắt đầu từ các **user story**. Tìm các **danh từ**, chúng trở thành entity, và các **động từ**, chúng trở thành use case. Rồi nhóm chúng lại.
+Trong thực tế, làm sao tìm ra các bounded context? Có một phương pháp đơn giản. Từ hành động của user (User Story) ➔ Nhặt từ khóa (Noun/Verb) ➔ Nhóm lại thành một vùng nghiệp vụ (Bounded Context) ➔ Biến vùng đó thành một Service.
+  (Bắt đầu từ các **user story**. Tìm các **danh từ**, chúng trở thành entity, và các **động từ**, chúng trở thành use case. Rồi nhóm chúng lại. )
 
-"List và filter products" cho mình **Catalog**. "Put products in the cart" cho mình **Basket**. "Apply coupons" cho mình **Discount**. "Check out và create an order" cho mình **Ordering**.
+"List and filter products by category" cho mình noun là **Product, Category**, ì các từ này đều nói về thông tin gốc của hàng hóa, ta nhóm chúng lại thành ngữ cảnh Catalog - Danh mục sản phẩm. Đây sẽ là Catalog Service.
 
-Giờ hãy nhìn vào bullet đầu tiên, vì đó là trái tim của ý tưởng bounded context: **cùng một từ có thể mang nghĩa khác nhau trong các context khác nhau.** Trong Catalog, một `Product` có name, description, image, categories và price, vì việc của Catalog là hiển thị sản phẩm. Trong Ordering, một `Product` chỉ có ID, name và price, vì một order chỉ cần có vậy. Hai model, mỗi cái đúng trong ranh giới của riêng nó. Cố ép một model "Product" dùng chung cho tất cả mọi người chính là cách các monolith bị rối.
+Cốt lõi của ý tưởng bounded context: **cùng một từ có thể mang nghĩa khác nhau trong các context khác nhau.** (Trong Catalog, một `Product` có name, description, image, categories và price, vì việc của Catalog là hiển thị sản phẩm. Trong Ordering, một `Product` chỉ có ID, name và price, vì một order chỉ cần có vậy. Hai model, mỗi cái đúng trong ranh giới của riêng nó. Cố ép một model "Product" dùng chung cho tất cả mọi người chính là cách các monolith bị rối.)
 
-Một bounded context thường là một microservice, nhưng bạn có thể tách nhỏ hơn nữa nếu một phần cần scale khác đi.
+Một bounded context thường là một microservice, nhưng ta có thể tách nhỏ hơn nữa nếu một phần bên trong cần scale khác 
+  (1 phần bên trong = domain component + technical component
+  Order Context tách ra Tạo đơn hàng, Xem lịch sử đơn hàng, Xuất báo cáo tài chính cuối tháng).
 
-## Slide 13: Entities, value objects, aggregates  `[16:00]`
+## Slide 13: The big picture  `[15:45]`
 
-Giờ đến tactical DDD: cách mô hình hóa bên trong một service. Ba building block.
+vd hệ thống ecommerce ta có
 
-**Entity** được định danh bằng **ID**. Hai order có dữ liệu giống hệt nhau vẫn là hai order khác nhau, vì ID khác nhau. Entity có **lifecycle**: một order được tạo, được thanh toán, được giao.
+**Shopping.Web**, client, chỉ nói chuyện với **YARP API gateway**. Gateway route đến **Catalog**, **Basket** và **Ordering**, mỗi service có database riêng. 
 
-**Value object** không có ID. Nó được định nghĩa bởi **các giá trị** của nó. Hai address có cùng street, city và zip code là cùng một address. Và value object là **immutable**: mình không sửa một address, mà thay nó bằng một cái mới.
+Catalog và Basket có thể dùng Vertical Slice architecture; Ordering dùng Clean Architecture với một DDD domain model.
 
-Trong Ordering service, `Order`, `OrderItem`, `Customer` và `Product` là entity. `Address`, `Payment`, `OrderName`, và thậm chí cả `OrderId` là value object.
+ **Basket gọi Discount qua gRPC**: synchronous call. Và **Basket publish một event lên RabbitMQ**, **Ordering consume** nó: asynchronous call. Hai mũi tên đó chính là Part 2 và Part 3 của buổi nói. Còn gateway phía trước tất cả là Part 4. 
 
-**Aggregate** là một cụm các entity và value object được xem là một đơn vị consistency. Entity chính của nó là **aggregate root**, và đó là cổng vào duy nhất. Ở đây, `Order` là root. Không ai thêm order item trực tiếp; mình gọi `Order.Add`, và order tự bảo đảm các quy tắc của nó được giữ, ví dụ quantity và price phải dương.
-
-## Slide 14: Entities and value objects in code  `[17:00]`
-
-Đây là hình dạng của nó trong code Ordering.
-
-Bên trái là base class `Entity`: một ID cộng với các audit field. `Order` kế thừa từ `Aggregate`, tức là một entity có thể raise domain event. Để ý rằng danh sách order item là **private**; bên ngoài chỉ nhận được một bản read-only. Cách duy nhất để thêm một item là method `Add`, method này validate quantity và price trước. Đó chính là aggregate root đang bảo vệ các quy tắc của nó.
-
-Bên phải là các value object. `Address` là một C# **record**, nên hai address có cùng giá trị thì tự động bằng nhau. Nó được tạo qua một factory method tên là `Of`, method này validate input. Và `OrderId` là một **strongly typed ID**: thay vì truyền các GUID thô đi khắp nơi, nơi rất dễ nhầm order ID với customer ID, mỗi loại ID có một type riêng, và một GUID rỗng sẽ bị từ chối.
-
-## Slide 15: The big picture  `[18:00]`
-
-Và đây là cách toàn bộ hệ thống khớp với nhau. Đọc từ trái sang phải.
-
-Đây là hệ thống tham chiếu cho phần còn lại của buổi nói, nên đáng để dành vài giây.
-
-**Shopping.Web**, client, chỉ nói chuyện với **YARP API gateway**. Gateway route đến **Catalog**, **Basket** và **Ordering**, mỗi service có database riêng. Catalog và Basket dùng Vertical Slice architecture; Ordering dùng Clean Architecture với DDD model mà mình vừa xem.
-
-Và để ý hai kết nối đặc biệt. **Basket gọi Discount qua gRPC**: synchronous. Và **Basket publish một event lên RabbitMQ**, **Ordering consume** nó: asynchronous. Hai mũi tên đó chính là Part 2 và Part 3 của buổi nói. Còn gateway phía trước tất cả là Part 4. Nên mọi thứ mình bàn từ giờ trở đi đều nằm đâu đó trên một diagram này.
-
-*Nếu ai đó so sánh với slide "Big Picture" của khóa học: hình đó vẽ thêm một mũi tên từ gateway đến Discount. Trong code thật, config YARP chỉ route đến Catalog, Basket và Ordering.*
 
 ---
 
-## Slide 16: Part 2 divider  `[18:15]`
+## Slide 14: Part 2 divider  `[16:00]`
 
 Phần hai: synchronous communication.
 
-## Slide 17: Service-to-service communication  `[20:45]`
+## Slide 15: Service-to-service communication  `[18:30]`
 Có hai kiểu. **Synchronous**: client gửi request và **chờ** cho đến khi nhận được response. Các công nghệ phổ biến gồm HTTP với REST, gRPC, GraphQL. **temporal coupling** (ràng buộc về mặt tgian): cả hai service phải đang chạy cùng một lúc.
 
 **Asynchronous**: client gửi một message và **không chờ**. Message đi đến một broker, như RabbitMQ hay Kafka, dùng một protocol như AMQP.
@@ -175,7 +155,7 @@ EShop dùng cả hai. Basket hỏi Discount **synchronous bằng gRPC**, vì nó
 
 rule of thumb là **REST cho public API, gRPC cho internal call, messaging cho các workflow xuyên nhiều service.**
 
-## Slide 18: Introduction to Protobuf and gRPC  `[22:30]`
+## Slide 16: Introduction to Protobuf and gRPC  `[20:15]`
 REST thì mn đã quá quen thuộc rồi nên e sẽ gthieu về grpc.
 là 1 một gọi thủ tục từ xa framework của Google (Remote Procedure Call framework). Nó dùng protocol **HTTP/2**, và client gọi một remote method **như thể đó là một local object**. (tức là gọi hàm ở servcer khác bằng cú pháp đơn giản như gọi hàm ngay trên máy (local object), framework tự tạo các đoạn code kết nối mạng phức tạp. Như framework này sẽ tự tạo ra một object giả lập ở phía Client gọi là stub, âm thầm tự đóng gói dữ liệu thành mã nhị phân, gửi qua giao thức HTTP/2, chạy qua dây mạng đến server bên kia để lấy kết quả về)
 
@@ -185,7 +165,7 @@ Hai điều mà mọi người hay bỏ sót. Thứ nhất, các con số như `
 
 Và trong .NET, mình không phải viết code networking. Quá trình build **tự sinh** một server base class và một client class từ file `.proto`.
 
-## Slide 19: gRPC server  `[23:45]`
+## Slide 17: gRPC server  `[21:30]`
 
 Đây là phía server. Trong `Program.cs`: `AddGrpc`, database, và `MapGrpcService`.
 
@@ -193,7 +173,7 @@ Và trong .NET, mình không phải viết code networking. Quá trình build **
 
 Cách xử lý lỗi cũng khác. Thay vì trả về HTTP 404, service throw một `RpcException` kèm một gRPC status code. Ví dụ, `DeleteDiscount` throw `StatusCode.NotFound` nếu coupon không tồn tại, còn `Create` và `Update` throw `InvalidArgument` khi request sai. Client nhận chúng dưới dạng các typed exception. Ba method còn lại, Create, Update và Delete, theo cùng một khuôn: map Protobuf message sang database model, lưu, rồi map ngược lại.
 
-## Slide 20: gRPC client  `[25:30]`
+## Slide 18: gRPC client  `[23:15]`
 
 Và phía client, trong Basket. Ba bước.
 
@@ -205,7 +185,7 @@ Thực ra, project Basket thậm chí không copy file. Nó link thẳng đến 
 
 **Ba**: inject client và gọi. Với mỗi cart item, gọi `GetDiscountAsync` với product name, rồi trừ đi amount của coupon. Nó đọc như một lời gọi method cục bộ, nhưng thật ra là một binary HTTP/2 request đến một container khác.
 
-## Slide 21: When to use REST, when to use gRPC  `[28:00]`
+## Slide 19: When to use REST, when to use gRPC  `[25:45]`
 
 Vậy khi nào chọn cái nào? So 2 thằng trước.
 
@@ -221,51 +201,47 @@ vd Một giỏ hàng có mười item nghĩa là mười lời gọi Discount m�
 
 ---
 
-## Slide 22: Part 3 divider  `[28:15]`
+## Slide 20: Part 3 divider  `[26:00]`
 
 Phần ba: asynchronous communication, và vì sao nó quan trọng.
 
-## Slide 23: Basic event-driven architecture  `[30:00]`
+## Slide 21: Basic event-driven architecture  `[27:45]`
 Bắt đầu với vấn đề ở bên trái. Hãy tưởng tượng tạo một order mà chỉ dùng các lời gọi synchronous. Gateway gọi ShoppingCart. ShoppingCart gọi Product và Pricing, rồi gọi Order. Order gọi Billing và Shipping. Sáu call chỉ cho một cú click. Mọi service đều phải đang chạy, độ trễ cộng dồn lại, và nếu Shipping chậm thì tất cả đều chậm.
 
 Event-driven architecture khắc phục điều này. Một **event** là **một sự thật đã xảy ra**, được đặt tên ở thì quá khứ: *BasketCheckedOut*, *OrderCreated*. **Producer** publish nó rồi đi tiếp. Nó **không biết** ai đang lắng nghe. Các **consumer**  tự xử lý dữ liệu theo nhịp độ riêng, không phụ thuộc vào nhau.
 
 Và một sự phân biệt hữu ích: một **command** bảo một service cụ thể phải làm gì, như "CreateOrder". Một **event** chỉ thông báo điều gì đã xảy ra, cho bất cứ ai quan tâm. Command ràng buộc mình với bên nhận; event thì không.
 
-
 Trong EShop, checkout là event. Basket không gọi Ordering rồi bảo "hãy tạo một order". Nó thông báo "basket này đã được checkout", và Ordering tự quyết định điều đó có nghĩa gì với nó.
 
-## Slide 24: Domain vs. integration events  `[31:30]`
-
-Trong các hệ thống DDD, có hai loại event.
-
-Một **domain event** ở lại **bên trong** một service. Nó được raise bởi một aggregate và được giao ngay trong process, trong bộ nhớ. Trong EShop, khi `Order.Create` chạy, aggregate `Order` raise một `OrderCreatedEvent`, và MediatR giao nó cho một handler trong cùng service.
-
-Một **integration event** đi **giữa** các service, thông qua một message broker. Trong EShop, đó là `BasketCheckoutEvent`, từ Basket đến Ordering, qua RabbitMQ.
-
-Diagram cho thấy chúng nối chuỗi với nhau thế nào. Integration event đến Ordering, handler tạo một order, order raise một domain event, và handler của domain event đó có thể publish một integration event mới, `OrderCreatedIntegrationEvent`, cho các service khác như shipping. Trong project này, bước cuối đó nằm sau một feature flag và đang tắt.
-
-## Slide 25: The role of a message broker  `[33:15]`
+## Slide 22: The role of a message broker  `[29:30]`
 
 Vậy broker ở giữa thực sự làm gì? Nó **nhận** message, **lưu** chúng cho đến khi consumer sẵn sàng, kể cả khi consumer đang down, **route** chúng đến đúng các queue, và **giao và retry**. Nó tách rời (decouple) các service về **thời gian**, vì chúng không cần chạy cùng lúc, và về **vị trí**, vì producer không cần biết địa chỉ của consumer.
 
-**RabbitMQ** là một broker open-source implement protocol AMQP. Khái niệm then chốt: producer không gửi trực tiếp vào queue. Chúng gửi đến một **exchange**, và exchange route đến các queue dựa trên loại của nó: **direct** theo key chính xác, **fanout** đến tất cả mọi người, **topic** theo pattern, hoặc **headers**.
+vd **RabbitMQ** là một broker open-source implement protocol AMQP, ngoài ra còn Apache Kafka, Azure Service Bus, ActiveMQ
 
-Bên trên RabbitMQ, EShop dùng **MassTransit**, một thư viện .NET tạo exchange và queue, đồng thời xử lý serialization và retry. Nên code của mình nghĩ theo event, không phải theo exchange.
+Bên cạnh đó, Producer không gửi event trực tiếp vào queue. Chúng gửi đến một **exchange**, và exchange route đến các queue dựa trên exchange type như: **direct** theo routing key chính xác, **fanout** đến tất cả mọi người (spam toàn hệ thống), **topic** theo pattern, hoặc **headers**.
 
-RabbitMQ cũng có sẵn một management web UI, ở port 15672 trong setup của mình. Nó hiển thị mọi exchange, queue và message rate, và đó là nơi đầu tiên nên xem khi một message có vẻ bị thất lạc.
+Bên trên RabbitMQ, ta có thể dùng **MassTransit**, một thư viện .NET tạo exchange và queue, đồng thời xử lý serialization và retry. (Nên code của mình nghĩ theo event, không phải theo exchange.)
 
-## Slide 26: Basic pub/sub pattern  `[34:45]`
+RabbitMQ cũng có sẵn một management web UI. Nó hiển thị mọi exchange, queue và message rate, và đó là nơi đầu tiên nên xem khi một message có vẻ bị thất lạc.
 
-Cách dùng broker phổ biến nhất là **publish/subscribe**.
+## Slide 23: Basic pub/sub pattern  `[31:00]`
 
-Basket publish **một** `BasketCheckoutEvent` đến một exchange. Broker **fan out** một bản sao đến queue của từng subscriber. Hôm nay trong EShop chỉ có một subscriber, là Ordering. Nhưng ngày mai mình có thể thêm một Notification service để gửi email, và một Analytics service để ghi nhận doanh số, **mà không phải sửa một dòng nào trong Basket**. Đó là sức mạnh thật sự của pub/sub.
+Cách dùng broker phổ biến nhất là mô hình **publish/subscribe** Trong đó, một service chỉ cần phát sự kiện lên hệ thống, và tất cả các service khác có đăng ký quan tâm sẽ tự động nhận được sự kiện đó để xử lý.
 
-So sánh với một queue thông thường: queue giao mỗi message cho **một** consumer; pub/sub cho **mỗi** subscriber một bản sao riêng.
+vd như Basket publish **một** `BasketCheckoutEvent` đến một exchange. Broker **fan out** một bản sao đến queue của từng subscriber. Hôm nay trong EShop chỉ có một subscriber, là Ordering. Nhưng ngày mai mình có thể thêm một Notification service để gửi email, và một Analytics service để ghi nhận doanh số, **mà không phải sửa một dòng nào trong Basket**. Đó là sức mạnh thật sự của pub/sub.
 
-Bên phải là các cái giá phải trả. Broker thường giao **at least once**, nên một message có thể đến hai lần, và consumer phải **idempotent**: xử lý hai lần thì vẫn phải an toàn. Thứ tự không được bảo đảm. Broker trở nên quan trọng sống còn, nên phải có high availability. Và có **eventual consistency**: order xuất hiện sau checkout một lúc, không phải ngay lập tức.
+So sánh với một queue thông thường: queue giao mỗi message cho **một** consumer; pub/sub cho **mỗi** subscriber một bản copy riêng.
 
-## Slide 27: Messaging setup  `[36:00]`
+Bên phải là các cái giá phải trả cho Event-Driven Architecture / Asynchronous Messaging
+- Broker thường giao **at least once**, nên một message có thể đến hai lần, và consumer phải **idempotent**: xử lý hai lần thì vẫn phải an toàn. 
+- Thứ tự không được bảo đảm. 
+- Broker trở nên quan trọng sống còn, nên phải có high availability, tức là  thiết lập hệ thống sao cho Broker luôn luôn hoạt động liên tục. (Cluster (Cụm máy chủ) và Replication (Nhân bản dữ liệu))
+- Khó trace và debug.
+- Và có **eventual consistency**: order xuất hiện sau checkout một lúc, không phải ngay lập tức.
+
+## Slide 24: Messaging setup  `[32:15]`
 
 Đây là cách EShop thiết lập việc này. Bên trái là **contract**: một base record `IntegrationEvent`, và `BasketCheckoutEvent` với user name, total price, address và payment. Cả Basket và Ordering đều reference cùng class này.
 
@@ -273,7 +249,7 @@ Bên phải là một extension method dùng chung, `AddMessageBroker`. Nó cấ
 
 Hai chi tiết. `ConfigureEndpoints` bảo MassTransit tạo một queue cho mỗi consumer mà nó tìm thấy, và bind nó vào đúng exchange, nên mình không bao giờ phải khai báo queue bằng tay. Và địa chỉ broker lấy từ configuration: chạy local là `amqp://localhost:5672`, còn bên trong Docker là `amqp://ecommerce-mq:5672`, được set bằng environment variable trong docker-compose. Cùng một code, khác môi trường.
 
-## Slide 28: Publish and consume  `[38:00]`
+## Slide 25: Publish and consume  `[34:15]`
 
 Và cả hai đầu của luồng checkout.
 
@@ -283,127 +259,86 @@ Bên phải là **consumer** trong Ordering. Nó implement **`IConsumer<BasketCh
 
 Để ý: **Basket không hề biết Ordering tồn tại.** Nó chỉ publish một event. Đó là loose coupling trong thực tế.
 
-Có một câu hỏi đáng đặt ra về handler này: nếu `Publish` thành công, nhưng việc xóa basket thất bại thì sao? Hoặc ngược lại? Ghi vào database và publish một message là hai thao tác riêng biệt, và cái nào cũng có thể thất bại. Đó gọi là **dual write problem**. Cách khắc phục chuẩn là **Outbox pattern**: lưu event trong cùng database transaction với dữ liệu, rồi publish sau. Khóa học sẽ đề cập sau; hôm nay mọi người chỉ cần biết vấn đề này tồn tại.
+Nói thêm 1 chút về gtiep bất đồng bộ thì: nếu `Publish` thành công, nhưng việc xóa giỏ hàng thất bại thì sao? Hoặc ngược lại? Ghi vào database và publish một message là hai thao tác riêng biệt, và cái nào cũng có thể thất bại. Đó gọi là **dual write problem**. Cách khắc phục chuẩn là **Outbox pattern**: lưu event trong cùng database transaction với dữ liệu, rồi publish sau. 
 
 ---
 
-## Slide 29: Part 4 divider  `[38:15]`
+## Slide 26: Part 4 divider  `[34:30]`
 
 Chủ đề cuối cùng: API gateway, và pattern Backends for Frontends.
 
-## Slide 30: The role of an API Gateway  `[39:45]`
+## Slide 27: The role of an API Gateway  `[36:00]`
 
 Không có gateway, mỗi client phải biết địa chỉ của mọi service, và mỗi service phải tự xử lý authentication, SSL và rate limiting.
 
-Gateway là một **điểm vào duy nhất** giữa client và các service, và nó làm ba việc. **Gateway routing**: gửi mỗi request đến đúng service nội bộ. Nếu mình di chuyển hoặc tách một service, chỉ có config của gateway thay đổi, không phải client. **Gateway aggregation**: gộp nhiều lời gọi service thành một response, để một mobile app chỉ gọi một lần thay vì năm lần. Và **gateway offloading**: xử lý các cross-cutting concern ở một nơi.
+Gateway là một **điểm vào duy nhất** giữa client và các service, và nó làm ba việc. **Gateway routing**: gửi mỗi request đến đúng internal service. Nếu mình di chuyển hoặc tách một service, chỉ có config của gateway thay đổi, không phải client. **Gateway aggregation**: gộp nhiều lời gọi service thành một response, để một client chỉ gọi một lần thay vì nhiều service khác nhau. Và **gateway offloading**: xử lý các cross-cutting concern ở một nơi. cross-cutting concern là những tính năng hoặc logic nghiệp vụ không thuộc về riêng một Microservice nào, mà service nào cũng cần phải có, vd authen author, logging, rate limit, caching,...
 
-Bên phải là pipeline mà một request đi qua: validation, IP allowlisting, authentication, rate limiting, service discovery, và protocol conversion, trước khi đến một service.
+Bên phải là pipeline mà một request đi qua. Trước khi đến được service, request có thể sẽ đi qua một pipeline tại API Gateway gồm các bước như: validation, IP allowlisting, authentication, rate limiting, service discovery, và protocol conversion. Toàn bộ các thành phần này đều là những tính năng tùy chọn, có thể bật/tắt hoặc cấu hình linh hoạt tùy theo nhu cầu hệ thống.
 
 Rủi ro: một gateway cho tất cả mọi thứ có thể trở thành **bottleneck** và **single point of failure**. Điều đó dẫn đến pattern tiếp theo.
 
-## Slide 31: Backends for Frontends  `[41:00]`
+## Slide 28: Backends for Frontends  `[37:15]`
 
-**Backends for Frontends**, hay BFF, nghĩa là **một gateway cho mỗi loại client**, thay vì một gateway cho tất cả mọi người.
+**Backends for Frontends**, hay BFF, nghĩa là **một gateway cho mỗi loại client**, thay vì một gateway cho tất cả client.
 
-Tại sao? Vì các client khác nhau cần những thứ khác nhau. Màn hình điện thoại cần ít dữ liệu hơn trang desktop, và ở một hình dạng khác. Nếu một gateway phục vụ tất cả, nó sẽ đầy logic riêng của từng client và trở thành bottleneck mà team nào cũng phải sửa. Với BFF, web team sở hữu web gateway, mobile team sở hữu mobile gateway, và mỗi cái trả về đúng những gì frontend của nó cần.
+Tại sao? Vì các client khác nhau cần những thứ khác nhau. Màn hình điện thoại cần ít dữ liệu hơn trang desktop, khác DTO. Nếu một gateway phục vụ tất cả, nó sẽ chứa nhiều logic riêng của từng client và trở thành bottleneck mà team nào cũng phải sửa. Với BFF, web team sở hữu web gateway, mobile team sở hữu mobile gateway, và mỗi cái trả về đúng những gì frontend của nó cần.
 
-EShop chỉ có một client, Shopping.Web, nên một gateway là đủ. Mình sẽ thêm BFF khi, ví dụ, có một mobile app xuất hiện.
 
-## Slide 32: Introduction to YARP  `[42:30]`
+## Slide 29: Introduction to YARP  `[38:45]`
 
-EShop implement gateway của nó bằng **YARP**, viết tắt của "Yet Another Reverse Proxy". Đây là một reverse-proxy library của Microsoft, xây trên ASP.NET Core. Nó hỗ trợ HTTP/2, gRPC và WebSockets, load balancing và health check, và cắm vào các middleware ASP.NET Core thông thường, như rate limiter.
+**YARP**, viết tắt của "Yet Another Reverse Proxy". Đây là một reverse-proxy library của Microsoft, xây trên .NET Core. Nó hỗ trợ HTTP/2, gRPC và WebSockets, load balancing, health check, và có thể tận dụng trực tiếp các middleware của .NET Core, vd như Rate Limiting hay Authentication.
 
-Đoạn code bên trái là *toàn bộ* gateway của EShop: thêm reverse proxy, load config của nó, thêm một rate limiter cho phép 5 request mỗi 10 giây, và map proxy.
+Đoạn code bên trái là cách implement yarp trong program.cs: thêm reverse proxy, load config của nó, thêm một rate limiter và config rate limiter (cho phép 5 request mỗi 10 giây), và map proxy.
 
-Bên phải là config. Một **route** khớp với một path, như `/catalog-service/` cộng với bất cứ thứ gì phía sau, và trỏ đến một **cluster**. **Transform** bỏ đi phần prefix. Cluster cho biết service nằm ở đâu: `catalog.api:8080`. Nên `/catalog-service/products` trở thành `catalog.api:8080/products`. Và route ordering còn áp dụng thêm rate limiting policy.
+Bên phải là config trong appsettings. Một **route**, Là lối vào hay là cái đường dẫn mà Client từ ngoài gọi lên Gateway, khớp với một path, như /catalog-service/ cộng với gì đó phía sau, và trỏ đến một **cluster**, Là lối ra hay là địa chỉ IP/Domain thực tế của service: catalog.api:8080
+Ở đây có config transform là bỏ đi phần tiền tố (prefix) /catalog-service/
+(Transform: Là hành động sửa đổi đường dẫn trước khi ném vào service nội bộ.)
+vì vậy client gọi đến gateway /catalog-service/products tức là gọi catalog.api:8080/products
 
-## Slide 33: Ocelot, and YARP vs. Ocelot  `[44:00]`
+Và route ordering còn áp dụng thêm rate limiting policy.
 
-Lựa chọn nổi tiếng khác trong .NET là **Ocelot**, một API gateway library open-source được cấu hình bằng file `ocelot.json`. EShop không dùng nó, nên ở cuối slide mình viết cùng route Catalog đó theo kiểu Ocelot, chỉ để so sánh. Đường dẫn **upstream** là cái client gọi; đường dẫn và host **downstream** là nơi Ocelot forward đến. Code khởi động chỉ là `AddOcelot` và `UseOcelot`.
 
-So sánh thế nào? **YARP** đến từ Microsoft và là một **toolkit** reverse-proxy: rất nhanh, tùy biến rất sâu bằng C#, và lấy thêm tính năng từ các middleware ASP.NET Core chuẩn. **Ocelot** là một project cộng đồng và là một **API gateway** làm sẵn: các tính năng như rate limiting, authentication, caching và request aggregation được bật trong file config riêng của nó.
+## Slide 30: Ocelot, and YARP vs. Ocelot  `[40:45]`
 
-Cả hai đều implement gateway routing pattern. YARP là cái mà khóa học này dùng.
+1 lựa chọn khác trong .NET là **Ocelot**, một API gateway library open-source được cấu hình bằng file `ocelot.json`. Đường dẫn **upstream** là cái client gọi; đường dẫn và host **downstream** là nơi Ocelot forward đến. Code khởi động trong program.cs chỉ là `AddOcelot` và `UseOcelot`.
 
-## Slide 34: Choosing an invocation method  `[46:00]`
+So sánh thế nào? Mình đi qua bảng từng dòng.
 
-Giờ mình ráp tất cả lại. Bảng này đọc từ trái sang phải: phương thức, kiểu giao tiếp, phù hợp nhất cho việc gì, và EShop dùng nó ở đâu.
+**From**: YARP do Microsoft phát triển; Ocelot là một project open-source của cộng đồng.
 
-**REST over HTTP**: synchronous, dùng JSON. Phù hợp nhất cho các public API và API hướng client, vì client nào cũng hiểu được. Trong EShop, đó là web app đi qua gateway đến Catalog, Basket và Ordering.
+**What it is**: YARP là một **toolkit** reverse-proxy. Nó cung cấp các building block nhanh để mình tự customize bằng C#. Ocelot là một **API gateway** làm sẵn: chủ yếu là cấu hình, ít phải viết code.
 
-**gRPC**: cũng synchronous, nhưng là binary, chạy trên HTTP/2. Phù hợp nhất cho các lời gọi nội bộ cần nhanh, khi hai bên dùng chung một contract chặt chẽ. Trong EShop, đó là Basket hỏi Discount giá của từng item, cũng chính là phần demo sắp tới.
+**Config**: YARP dùng **routes và clusters**, trong `appsettings.json` hoặc trong code. Ocelot dùng các route **upstream và downstream** trong file `ocelot.json` riêng.
 
-**Messaging với RabbitMQ**: asynchronous, dùng event. Phù hợp nhất cho các workflow xuyên nhiều service, khi cần decoupling, hoặc fan-out đến nhiều consumer. Trong EShop, đó là checkout: Basket publish, Ordering consume.
+**Built in**: YARP có sẵn routing, load balancing, health check và transform. Ocelot có routing cùng với rate limiting, authentication, caching và request aggregation.
 
-Và **API gateway với YARP**: synchronous, là một reverse proxy. Nó không phải cách để các service nói chuyện với nhau, mà là cửa vào duy nhất cho client, nơi đặt routing, rate limiting và security. Trong EShop, Shopping.Web chỉ gọi đến YarpApiGateway.
+**Extra features**: với YARP, mình thêm qua các middleware ASP.NET Core chuẩn, như rate limiter ở slide trước. Với Ocelot, chủ yếu là bật trong file config riêng của nó.
 
-Hệ thống thực tế thường kết hợp chúng. Lời khuyên để mang về: giữ các chuỗi gọi synchronous **ngắn**, và dùng messaging cho bất cứ thứ gì không cần câu trả lời ngay.
+Và **trong EShop**: dùng YARP, không dùng Ocelot.
 
-Một phép thử đơn giản mà mọi người có thể dùng: người gọi có cần câu trả lời *ngay bây giờ* để tiếp tục không? Basket cần discount ngay lúc đó để hiển thị giá, nên đó là một synchronous call. Basket không cần số order để hoàn tất checkout, nên đó là một event.
-
-Slide thế là đủ. Giờ xem nó chạy.
-
+Cả hai đều implement gateway routing pattern. 
 ---
 
-## Slide 35: Demo setup  `[47:00]`
-
-*(Hai service đã chạy sẵn trong hai terminal đặt cạnh nhau, để thấy log của cả hai. VS Code đang mở `demo.http`.)*
-
-Với phần demo, mình chỉ lấy phần gRPC của khóa học, section 10 đến 12, và cho nó chạy trên laptop chỉ với .NET SDK. Không Docker, không database server.
-
-Có hai project. **Discount.Grpc** là gRPC server, đúng như service mình đã thấy trên slide: contract `.proto`, `DiscountService`, và một file SQLite nhỏ với hai coupon có sẵn: giảm 150 cho iPhone X và giảm 100 cho Samsung 10. **Basket.API** là client. Mình đã rút gọn nó chỉ còn phần cốt lõi: nó giữ basket trong bộ nhớ, và khi mình lưu một basket, nó gọi Discount qua gRPC cho từng item.
-
-Cả hai project dùng chung một file `discount.proto`. Project server sinh ra server base class, project client sinh ra client. Một contract, hai phía được sinh code.
-
-Và có một điểm khác so với khóa học: ở đây client gọi `localhost:5002` bằng HTTP/2 thường, không có TLS, nên không cần cách xử lý development certificate như ở slide trước.
-
-## Slide 36: Demo steps  `[52:00]`
-
-*[Gửi request 1 trong `demo.http`: lưu basket với ba item.]*
-
-Mình lưu một basket cho user "swn" với ba chiếc điện thoại: một iPhone X giá 950, hai Samsung 10 giá 840, và một Huawei Plus giá 650. Đây là một REST call bình thường, JSON vào và JSON ra.
-
-Nhìn vào response: iPhone còn **800**, Samsung còn **740**, Huawei vẫn **650**.
-
-Giờ xem log. Bên Discount: "Discount is retrieved for ProductName: IPhone X, Amount: 150", rồi Samsung với 100, và với Huawei là "No Discount", amount bằng 0. Bên Basket là các dòng tương ứng: "gRPC GetDiscount returned amount 150", v.v. Ba item, ba lời gọi gRPC, và trong code mỗi lời gọi trông như một method C# bình thường.
-
-*[Gửi request 2: lấy basket.]*
-
-Đọc lại thì thấy giá đã giảm được lưu lại. Tổng là 2.930.
-
-*[Gửi request 3: tạo coupon.]*
-
-Giờ mình thay đổi dữ liệu ở phía bên kia. Request này gửi đến Basket, và Basket gọi một gRPC method *khác*, `CreateDiscount`, để thêm coupon giảm 50 cho Huawei. Response là `CouponModel` mới, với id 3: đó là Protobuf message, được chuyển lại thành JSON để mình đọc.
-
-*[Gửi request 4: lưu lại basket Huawei.]*
-
-Và nếu mình lưu lại basket Huawei: **600**. Basket không thay đổi gì; Discount service thay đổi, và Basket nhận được giá mới ở lần gọi tiếp theo.
-
-*Tùy chọn, nếu còn một phút: dừng Discount.Grpc (Ctrl+C) rồi gửi lại request 1. Request sẽ báo lỗi server, vì lời gọi gRPC là synchronous: Basket không thể hoàn thành khi thiếu Discount. Nói: "Đó là temporal coupling ở Part 2, và đó chính là lý do checkout dùng event chứ không dùng lời gọi trực tiếp." Sau đó khởi động lại Discount.Grpc.*
-
-Đó là gRPC trong thực tế: một contract, code được sinh ra ở cả hai phía, và một lời gọi từ xa nhưng đọc như lời gọi local.
-
----
-
-## Slide 37: Summary  `[53:15]`
+## Slide 31: Summary  `[42:00]`
 
 Mình tóm tắt lại.
 
 **Microservices** là các service nhỏ, tự chủ, xây quanh các business capability, mỗi service có dữ liệu và deployment riêng. Chỉ áp dụng khi có lý do thực sự.
 
-**DDD** cho mình biết **tách ở đâu**, bằng bounded context và ubiquitous language, và **mô hình hóa** từng service **thế nào**, bằng entity, value object và aggregate.
+**DDD** cho mình biết **tách ở đâu**, bằng bounded context và ubiquitous language, 
 
 Với giao tiếp **synchronous**, dùng **REST** cho các API hướng client và **gRPC với Protobuf** cho các lời gọi nội bộ nhanh. Với giao tiếp **asynchronous**, dùng **event** qua **message broker** với pub/sub, cho các workflow decoupled. Và một **API gateway**, YARP hoặc Ocelot, làm cánh cửa trước duy nhất, cùng **BFF** khi có nhiều loại client.
 
-Và trong demo, mọi người đã thấy phần synchronous chạy thật: Basket gọi Discount qua gRPC, với một contract dùng chung.
 
-## Slide 38: References  `[53:30]`
+## Slide 32: References `[43:45]`
 
-Khóa học, các slide và toàn bộ code được liệt kê ở đây, từ section 4 đến section 20, là hệ thống hoàn chỉnh. Về DDD, cuốn sách của Eric Evans là bản gốc, và e-book miễn phí của Microsoft về kiến trúc .NET microservices là bước tiếp theo tốt nhất. Còn project demo gRPC mình vừa chạy nằm trong thư mục `grpc-demo`, có README hướng dẫn cách chạy.
+cuốn sách của Eric Evans,
+e-book của Microsoft
 
-## Slide 39: Questions  `[60:00]`
+## Slide 33: Questions `[60:00]`
 
-Phần của mình đến đây là hết. Cảm ơn mọi người! Mình sẵn sàng nhận câu hỏi.
+Phần tbay của e đến đây là hết, mn ai có câu hỏi j ko ạ
+
 
 ---
 
@@ -411,9 +346,6 @@ Phần của mình đến đây là hết. Cảm ơn mọi người! Mình sẵn
 
 **"Một bounded context có luôn là một microservice không?"**
 Thường là vậy, nhưng không phải luôn luôn. Bounded context là một ranh giới logic trong model; microservice là một ranh giới deployment. Một bounded context có thể được tách thành nhiều service nếu các phần cần scale khác nhau. Chiều ngược lại, một service trải dài nhiều bounded context, là một dấu hiệu cảnh báo.
-
-**"Tại sao tạo OrderId thành một type thay vì dùng thẳng Guid?"**
-Đó là tránh cái gọi là "primitive obsession". Nếu mọi ID đều là `Guid`, rất dễ truyền nhầm customer ID vào chỗ cần order ID, và compiler không phát hiện ra. Với strongly typed ID, lỗi đó không compile được, và phần validation, như từ chối ID rỗng, nằm ở đúng một chỗ.
 
 **"Làm sao giữ dữ liệu consistent khi không có shared database transaction?"**
 Bằng eventual consistency và event. Muốn bảo đảm mạnh hơn thì có hai pattern. **Outbox pattern** lưu event trong cùng database transaction với dữ liệu, và một background process publish nó sau, giúp tránh "dual write problem". **Saga pattern** điều phối các business transaction nhiều bước, với các compensating action khi một bước thất bại. Cả hai đều được đề cập ở phần sau của khóa học.

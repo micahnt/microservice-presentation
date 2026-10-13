@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tactical DDD and gRPC Demo</title>
+    <style>
+      :root {
+        --navy: #1d2b4f;
+        --text: #2f3542;
+        --muted: #6b7280;
+        --purple: #7d55c7;
+        --purple-soft: #f5f1fc;
+        --teal: #179c84;
+        --teal-soft: #ecf8f5;
+        --red: #d1344f;
+        --red-border: #eaa2ad;
+        --red-soft: #fdf0f2;
+        --amber: #b7791f;
+        --amber-soft: #fdf6e7;
+        --line: #e3e5ea;
+        --code-bg: #f7f8fa;
+        --scale: 1;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #e9ebef;
+        font-family:
+          "Segoe UI",
+          system-ui,
+          -apple-system,
+          Roboto,
+          Arial,
+          sans-serif;
+        color: var(--text);
+      }
+      .slide {
+        position: absolute;
+        left: 50%;
+        top: calc(50% - 22px);
+        width: 1280px;
+        height: 720px;
+        padding: 40px 64px 44px;
+        background: #fff;
+        overflow: hidden;
+        transform: translate(-50%, -50%) scale(var(--scale));
+        display: none;
+        flex-direction: column;
+        gap: 18px;
+        box-shadow: 0 6px 30px rgba(0, 0, 0, 0.12);
+      }
+      .slide.active {
+        display: flex;
+      }
+      .num {
+        position: absolute;
+        right: 26px;
+        bottom: 16px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      h1 {
+        margin: 0;
+        font-size: 40px;
+        font-weight: 700;
+        color: var(--navy);
+        letter-spacing: -0.3px;
+      }
+      .intro {
+        margin: -8px 0 0;
+        font-size: 18px;
+        line-height: 1.45;
+        color: var(--muted);
+      }
+      p {
+        margin: 0;
+        font-size: 18px;
+        line-height: 1.45;
+      }
+      ul,
+      ol {
+        margin: 0;
+        padding-left: 22px;
+        font-size: 18px;
+        line-height: 1.5;
+      }
+      li + li {
+        margin-top: 3px;
+      }
+      b,
+      strong {
+        color: var(--navy);
+      }
+      code {
+        font-family: Consolas, "Cascadia Mono", monospace;
+        font-size: 0.88em;
+        background: var(--code-bg);
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        padding: 0 5px;
+      }
+
+      /* boxes */
+      .box {
+        border: 2px solid var(--purple);
+        border-radius: 16px;
+        padding: 14px 20px;
+        background: #fff;
+      }
+      .box .hd {
+        color: var(--purple);
+        font-weight: 700;
+        font-size: 18px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        text-align: center;
+        margin-bottom: 8px;
+      }
+      .box.left .hd {
+        text-align: left;
+      }
+      .box.teal {
+        border-color: var(--teal);
+      }
+      .box.teal .hd {
+        color: var(--teal);
+      }
+      .box.red {
+        border-color: var(--red-border);
+        background: var(--red-soft);
+      }
+      .box.red .hd {
+        color: var(--red);
+      }
+      .box.amber {
+        border-color: #e7c27d;
+        background: var(--amber-soft);
+      }
+      .box.amber .hd {
+        color: var(--amber);
+      }
+      .box.grey {
+        border-color: #c9ccd3;
+      }
+      .box.grey .hd {
+        color: var(--muted);
+      }
+      .box.dashed {
+        border-style: dashed;
+      }
+      .box.soft {
+        background: var(--purple-soft);
+      }
+      .box p,
+      .box li {
+        font-size: 17px;
+      }
+      .box .center {
+        text-align: center;
+      }
+      .callout {
+        background: var(--red-soft);
+        border: 2px solid var(--red-border);
+        color: var(--red);
+        font-weight: 700;
+        font-size: 19px;
+        border-radius: 12px;
+        padding: 12px 22px;
+        text-align: center;
+      }
+      .callout.teal {
+        background: var(--teal-soft);
+        border-color: #9fd8cb;
+        color: #127a67;
+      }
+      .callout.purple {
+        background: var(--purple-soft);
+        border-color: #cbb8ee;
+        color: var(--purple);
+      }
+      .note {
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .box code {
+        overflow-wrap: anywhere;
+      }
+      .big .box p,
+      .big .box li {
+        font-size: 20px;
+      }
+      .big .box .hd {
+        font-size: 19px;
+      }
+      .chip.wrap {
+        white-space: normal;
+      }
+      .tight .chip {
+        font-size: 14px;
+        padding: 5px 9px;
+      }
+      .tight .flow {
+        gap: 6px;
+      }
+
+      /* layout */
+      .row {
+        display: flex;
+        gap: 18px;
+      }
+      .row > * {
+        flex: 1;
+        min-width: 0;
+      }
+      .g2 {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 18px;
+      }
+      .g3 {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .g4 {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .fill {
+        flex: 1;
+        min-height: 0;
+      }
+      .vcenter {
+        justify-content: center;
+      }
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      /* flow diagrams */
+      .flow {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: nowrap;
+      }
+      .flow.center {
+        justify-content: center;
+      }
+      .chip {
+        display: inline-block;
+        border: 2px solid var(--purple);
+        color: var(--purple);
+        background: #fff;
+        border-radius: 10px;
+        padding: 7px 14px;
+        font-weight: 600;
+        font-size: 16px;
+        white-space: nowrap;
+        text-align: center;
+      }
+      .chip.teal {
+        border-color: var(--teal);
+        color: var(--teal);
+      }
+      .chip.red {
+        border-color: var(--red-border);
+        color: var(--red);
+        background: var(--red-soft);
+      }
+      .chip.grey {
+        border-color: #c9ccd3;
+        color: var(--muted);
+      }
+      .chip.dashed {
+        border-style: dashed;
+      }
+      .chip.solid {
+        background: var(--purple);
+        color: #fff;
+      }
+      .chip.solid.teal {
+        background: var(--teal);
+        color: #fff;
+      }
+      .chip small {
+        display: block;
+        font-weight: 400;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .arr {
+        flex: none;
+        width: 46px;
+        height: 18px;
+        color: var(--teal);
+      }
+      .arr.long {
+        width: 80px;
+      }
+      .arr.down {
+        width: 18px;
+        height: 34px;
+      }
+      .lbl {
+        font-size: 13px;
+        color: var(--teal);
+        font-weight: 600;
+        text-align: center;
+      }
+
+      /* tables */
+      table {
+        border-collapse: separate;
+        border-spacing: 0;
+        width: 100%;
+        font-size: 16px;
+        border: 2px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      th {
+        background: var(--purple-soft);
+        color: var(--purple);
+        text-align: left;
+        font-weight: 700;
+        padding: 8px 12px;
+        border-bottom: 2px solid var(--line);
+      }
+      td {
+        padding: 7px 12px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      td:first-child {
+        font-weight: 600;
+        color: var(--navy);
+      }
+      table.small {
+        font-size: 14.5px;
+      }
+      table.small td,
+      table.small th {
+        padding: 6px 10px;
+      }
+
+      /* code */
+      pre.code {
+        margin: 0;
+        background: var(--code-bg);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 11px 14px;
+        font:
+          13px/1.42 Consolas,
+          "Cascadia Mono",
+          monospace;
+        color: #24292f;
+        white-space: pre;
+        overflow: hidden;
+      }
+      pre.code.sm {
+        font-size: 12px;
+        line-height: 1.36;
+      }
+      pre.code .c {
+        color: #8a8f98;
+      }
+      pre.code .k {
+        color: #7d55c7;
+      }
+      pre.code .s {
+        color: #127a67;
+      }
+      .cap {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--purple);
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
+
+      /* title & divider slides */
+      .title-slide {
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        gap: 22px;
+      }
+      .title-slide h1 {
+        font-size: 60px;
+      }
+      .divider {
+        justify-content: center;
+        padding-left: 110px;
+        border-left: 14px solid var(--purple);
+      }
+      .divider .part {
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--purple);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+      }
+      .divider h1 {
+        font-size: 52px;
+      }
+      .divider .intro {
+        margin-top: 4px;
+        font-size: 20px;
+      }
+
+      /* nav hint */
+      .hint {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 8px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: #8a8f98;
+      }
+      .hint button {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border: 1px solid #c9cdd4;
+        border-radius: 6px;
+        background: #fff;
+        color: var(--navy);
+        font-size: 16px;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .hint button:hover:not(:disabled) {
+        background: #f3f4f6;
+      }
+      .hint button:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .hint input {
+        width: 44px;
+        height: 28px;
+        padding: 0 4px;
+        border: 1px solid #c9cdd4;
+        border-radius: 6px;
+        font: inherit;
+        font-size: 13px;
+        text-align: center;
+        color: var(--text);
+      }
+      .hint .sep {
+        margin: 0 4px;
+      }
+      @media print {
+        @page {
+          size: 1280px 720px;
+          margin: 0;
+        }
+        html,
+        body {
+          background: #fff;
+        }
+        .slide {
+          display: flex !important;
+          position: relative;
+          left: 0;
+          top: 0;
+          transform: none;
+          box-shadow: none;
+          page-break-after: always;
+          break-after: page;
+        }
+        .hint {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute">
+      <defs>
+        <symbol id="ar" viewBox="0 0 46 18">
+          <line x1="1" y1="9" x2="40" y2="9" stroke="currentColor" stroke-width="2.6" />
+          <path d="M33 3 L44 9 L33 15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="arl" viewBox="0 0 46 18">
+          <line x1="6" y1="9" x2="45" y2="9" stroke="currentColor" stroke-width="2.6" />
+          <path d="M13 3 L2 9 L13 15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="ard" viewBox="0 0 18 34">
+          <line x1="9" y1="1" x2="9" y2="28" stroke="currentColor" stroke-width="2.6" />
+          <path d="M3 21 L9 32 L15 21" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round" />
+        </symbol>
+      </defs>
+    </svg>
+
+    <!-- 1 -->
+    <section class="slide title-slide">
+      <h1>Tactical DDD &amp; gRPC Demo</h1>
+      <p class="intro" style="margin: 0; font-size: 22px">Modeling inside one service · Basket calls Discount over gRPC</p>
+      <div class="flow center"><span class="chip">Entities</span><span class="chip">Value objects</span><span class="chip">Aggregates</span><span class="chip teal">gRPC demo</span></div>
+      <p class="note">Reference project: EShopMicroservices · demo code: <code>grpc-demo</code></p>
+    </section>
+
+<!-- 2 -->
+    <section class="slide">
+      <h1>Tactical DDD: entities, value objects, aggregates</h1>
+      <table class="small">
+        <tr>
+          <th style="width: 240px"></th>
+          <th>Entity</th>
+          <th>Value object</th>
+        </tr>
+        <tr>
+          <td>Identified by</td>
+          <td>Its <b>ID</b></td>
+          <td>Its <b>values</b> (no ID)</td>
+        </tr>
+        <tr>
+          <td>Two with the same data are…</td>
+          <td>Still <b>different</b> objects</td>
+          <td><b>Equal</b></td>
+        </tr>
+        <tr>
+          <td>Changes over time?</td>
+          <td>Yes, it has a <b>lifecycle</b></td>
+          <td>No, it's <b>immutable</b>: replace it instead</td>
+        </tr>
+        <tr>
+          <td>In EShop Ordering</td>
+          <td><code>Order</code>, <code>OrderItem</code>, <code>Customer</code>, <code>Product</code></td>
+          <td><code>Address</code>, <code>Payment</code>, <code>OrderName</code>, <code>OrderId</code></td>
+        </tr>
+      </table>
+      <div class="row" style="align-items: stretch">
+        <div class="box soft" style="flex: 2">
+          <div class="hd">Order aggregate</div>
+          <div class="flow center" style="margin-bottom: 10px"><span class="chip solid">Order · aggregate root</span></div>
+          <div class="g2">
+            <div class="stack" style="gap: 6px; align-items: center">
+              <span class="cap">Value objects</span>
+              <div class="flow center" style="flex-wrap: wrap"><span class="chip teal">OrderId</span><span class="chip teal">OrderName</span><span class="chip teal">Address ×2</span><span class="chip teal">Payment</span></div>
+            </div>
+            <div class="stack" style="gap: 6px; align-items: center">
+              <span class="cap">Entities</span>
+              <div class="flow center"><span class="chip">OrderItem × N</span></div>
+              <span class="note">changed only through <code>Order.Add</code> / <code>Order.Remove</code></span>
+            </div>
+          </div>
+        </div>
+        <div class="box teal" style="flex: 1">
+          <div class="hd">Aggregate</div>
+          <p class="center">A cluster of entities and value objects treated as <b>one unit of consistency</b>. Its main entity, the <b>aggregate root</b>, is the only entry point.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section class="slide">
+      <h1>Entities and value objects in the Ordering code</h1>
+      <div class="g2 fill">
+        <div class="stack">
+          <pre class="code sm"><span class="c">// Entity: identity + audit fields</span>
+<span class="k">public abstract class</span> Entity&lt;T&gt; : IEntity&lt;T&gt;
+{
+    <span class="k">public</span> T Id { get; set; }
+    <span class="k">public</span> DateTime? CreatedAt { get; set; }
+    <span class="k">public</span> DateTime? LastModified { get; set; }
+    <span class="c">// ...</span>
+}
+
+<span class="c">// Aggregate root: owns its items, raises events</span>
+<span class="k">public class</span> Order : Aggregate&lt;OrderId&gt;
+{
+    <span class="k">private readonly</span> List&lt;OrderItem&gt; _orderItems = new();
+    <span class="k">public</span> IReadOnlyList&lt;OrderItem&gt; OrderItems
+        =&gt; _orderItems.AsReadOnly();
+    <span class="k">public</span> Address ShippingAddress { get; <span class="k">private</span> set; }
+
+    <span class="k">public void</span> Add(ProductId productId, <span class="k">int</span> quantity, <span class="k">decimal</span> price)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(quantity);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(price);
+        _orderItems.Add(<span class="k">new</span> OrderItem(Id, productId, quantity, price));
+    }
+}</pre>
+        </div>
+        <div class="stack">
+          <pre class="code sm"><span class="c">// Value object: a C# record = equality by value</span>
+<span class="k">public record</span> Address
+{
+    <span class="k">public string</span> FirstName { get; } = default!;
+    <span class="k">public string</span> AddressLine { get; } = default!;
+    <span class="k">public string</span> Country { get; } = default!;
+    <span class="c">// ...</span>
+    <span class="k">public static</span> Address Of(<span class="k">string</span> firstName, ...,
+        <span class="k">string</span> emailAddress, <span class="k">string</span> addressLine, ...)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(emailAddress);
+        ArgumentException.ThrowIfNullOrWhiteSpace(addressLine);
+        <span class="k">return new</span> Address(firstName, ...);
+    }
+}
+
+<span class="c">// Strongly typed ID: also a value object</span>
+<span class="k">public record</span> OrderId
+{
+    <span class="k">public</span> Guid Value { get; }
+    <span class="k">public static</span> OrderId Of(Guid value) =&gt;
+        value == Guid.Empty
+            ? <span class="k">throw new</span> DomainException(<span class="s">"OrderId cannot be empty."</span>)
+            : <span class="k">new</span> OrderId(value);
+}</pre>
+        </div>
+      </div>
+      <p class="note">Simplified from <code>Ordering.Domain</code>. Entities are created with <code>Create(...)</code>, value objects with <code>Of(...)</code>, and both validate their input.</p>
+    </section>
+
+    <!-- 4 -->
+    <section class="slide">
+      <h1>Choosing an invocation method</h1>
+      <table>
+        <tr>
+          <th>Method</th>
+          <th>Style</th>
+          <th>Best for</th>
+          <th>EShop usage</th>
+        </tr>
+        <tr>
+          <td>REST / HTTP</td>
+          <td>Sync, JSON</td>
+          <td>Public and client-facing APIs</td>
+          <td>Web → Gateway → Catalog, Basket, Ordering</td>
+        </tr>
+        <tr>
+          <td>gRPC</td>
+          <td>Sync, binary, HTTP/2</td>
+          <td>Fast internal calls with strict contracts</td>
+          <td>Basket → Discount (price calculation)</td>
+        </tr>
+        <tr>
+          <td>Messaging (RabbitMQ)</td>
+          <td>Async, events</td>
+          <td>Cross-service workflows, decoupling, fan-out</td>
+          <td>Basket → Ordering (checkout)</td>
+        </tr>
+        <tr>
+          <td>API Gateway (YARP)</td>
+          <td>Sync, reverse proxy</td>
+          <td>Single entry point, rate limiting, security</td>
+          <td>Shopping.Web → YarpApiGateway</td>
+        </tr>
+      </table>
+      <div class="callout">Real systems mix these methods. Keep sync call chains short; use messaging for anything that doesn't need an immediate answer.</div>
+      <div class="g2">
+        <div class="box">
+          <div class="hd">Need the answer now?</div>
+          <p class="center">Basket needs the discount to show a price → <b>synchronous</b></p>
+        </div>
+        <div class="box teal">
+          <div class="hd">Don't need it now?</div>
+          <p class="center">Basket doesn't need the order number to finish checkout → <b>event</b></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section class="slide">
+      <h1>Demo: gRPC call, Basket → Discount</h1>
+      <p class="intro">Sections 10–12 only. Runs on a laptop with the .NET 8 SDK: no Docker, no database server.</p>
+      <div class="flow center" style="margin-top: 6px">
+        <span class="chip grey">curl / demo.http</span>
+        <div class="stack" style="gap: 2px; align-items: center"><span class="lbl">REST · JSON</span><svg class="arr long"><use href="#ar" /></svg></div>
+        <div class="box" style="flex: 0 0 220px; padding: 10px 14px"><div class="hd">Basket.API</div><p class="center note">:5001 · gRPC client<br />in-memory carts</p></div>
+        <div class="stack" style="gap: 2px; align-items: center"><span class="lbl">gRPC · HTTP/2 + Protobuf</span><svg class="arr" style="width: 170px"><use href="#ar" /></svg><span class="lbl">GetDiscount · CreateDiscount</span></div>
+        <div class="box teal" style="flex: 0 0 220px; padding: 10px 14px"><div class="hd">Discount.Grpc</div><p class="center note">:5002 · gRPC server<br />EF Core</p></div>
+        <svg class="arr"><use href="#ar" /></svg>
+        <span class="chip grey">SQLite</span>
+      </div>
+      <div class="g2">
+        <div class="stack">
+          <div class="cap">One contract, two generated sides</div>
+          <pre class="code"><span class="c">&lt;!-- Discount.Grpc.csproj --&gt;</span>
+&lt;Protobuf Include=<span class="s">"Protos\discount.proto"</span> GrpcServices=<span class="s">"Server"</span> /&gt;
+
+<span class="c">&lt;!-- Basket.API.csproj: the same file, linked --&gt;</span>
+&lt;Protobuf Include=<span class="s">"..\Discount.Grpc\Protos\discount.proto"</span>
+          GrpcServices=<span class="s">"Client"</span> /&gt;</pre>
+        </div>
+        <div class="stack">
+          <div class="cap">Run (two terminals, in grpc-demo)</div>
+          <pre class="code">dotnet run --project Discount.Grpc   <span class="c"># terminal 1: server</span>
+dotnet run --project Basket.API      <span class="c"># terminal 2: client</span></pre>
+          <div class="callout teal" style="font-size: 16px">Seeded coupons: IPhone X −150 · Samsung 10 −100 · anything else: "No Discount" (0)</div>
+        </div>
+      </div>
+      <p class="note">Simplified from the course: Basket keeps carts in memory (no Marten, Redis, PostgreSQL) and calls Discount over plain HTTP/2, so no dev certificate is needed.</p>
+    </section>
+
+    <!-- 6 -->
+    <section class="slide">
+      <h1>Demo steps</h1>
+      <table>
+        <tr><th style="width: 44px">#</th><th>Request (demo.http)</th><th>gRPC method called</th><th>Result</th></tr>
+        <tr><td>1</td><td><code>POST /basket</code>: IPhone X 950 · Samsung 10 840 ×2 · Huawei Plus 650</td><td><code>GetDiscount</code> ×3</td><td><b>800 · 740 · 650</b></td></tr>
+        <tr><td>2</td><td><code>GET /basket/swn</code></td><td>(none)</td><td>Saved, total 2,930</td></tr>
+        <tr><td>3</td><td><code>POST /discount</code>: Huawei Plus, amount 50</td><td><code>CreateDiscount</code></td><td>New coupon, id 3</td></tr>
+        <tr><td>4</td><td><code>POST /basket</code>: Huawei Plus 650 again</td><td><code>GetDiscount</code></td><td><b>600</b></td></tr>
+      </table>
+      <div class="g2">
+        <div class="box teal"><div class="hd">Discount.Grpc log (server)</div><p class="center" style="font-size: 15px"><code>Discount is retrieved for ProductName : IPhone X, Amount : 150</code><br /><code>Discount is successfully created. ProductName : Huawei Plus</code></p></div>
+        <div class="box"><div class="hd">Basket.API log (client)</div><p class="center" style="font-size: 15px"><code>gRPC GetDiscount(IPhone X) returned amount 150</code><br /><code>gRPC GetDiscount(Huawei Plus) returned amount 0</code></p></div>
+      </div>
+      <div class="callout">Optional: stop Discount.Grpc and send request 1 again: it fails. A synchronous call means temporal coupling.</div>
+    </section>
+
+    <div class="hint">
+      <button id="prev" type="button" aria-label="Previous slide">‹</button>
+      <input id="goto" type="number" min="1" aria-label="Go to slide" />
+      <span id="total"></span>
+      <button id="next" type="button" aria-label="Next slide">›</button>
+      <span class="sep">·</span>
+      <span>← → to navigate · F for full screen · Ctrl+P to save as PDF</span>
+    </div>
+
+    <script>
+      const slides = Array.from(document.querySelectorAll(".slide"));
+      slides.forEach((s, k) => {
+        const n = document.createElement("div");
+        n.className = "num";
+        n.textContent = k + 1;
+        s.appendChild(n);
+      });
+      const prevBtn = document.getElementById("prev");
+      const nextBtn = document.getElementById("next");
+      const gotoInput = document.getElementById("goto");
+      gotoInput.max = slides.length;
+      document.getElementById("total").textContent = "/ " + slides.length;
+      let cur = 0;
+      function show(n) {
+        cur = Math.max(0, Math.min(slides.length - 1, n));
+        slides.forEach((s, k) => s.classList.toggle("active", k === cur));
+        history.replaceState(null, "", "#" + (cur + 1));
+        gotoInput.value = cur + 1;
+        prevBtn.disabled = cur === 0;
+        nextBtn.disabled = cur === slides.length - 1;
+      }
+      function fit() {
+        // Leave 44px at the bottom for the control bar.
+        const s = Math.min(window.innerWidth / 1280, (window.innerHeight - 44) / 720) * 0.98;
+        document.documentElement.style.setProperty("--scale", s);
+      }
+      prevBtn.addEventListener("click", () => show(cur - 1));
+      nextBtn.addEventListener("click", () => show(cur + 1));
+      function goTo() {
+        const n = parseInt(gotoInput.value, 10);
+        if (n) show(n - 1);
+        else gotoInput.value = cur + 1;
+      }
+      gotoInput.addEventListener("change", goTo);
+      gotoInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          goTo();
+          gotoInput.blur();
+        } else if (e.key === "Escape") {
+          gotoInput.value = cur + 1;
+          gotoInput.blur();
+        }
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.target === gotoInput) return;
+        if (e.key === "ArrowRight") {
+          e.preventDefault();
+          show(cur + 1);
+        } else if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          show(cur - 1);
+        } else if (e.key === "Home") show(0);
+        else if (e.key === "End") show(slides.length - 1);
+        else if (e.key === "f" || e.key === "F") {
+          if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+          else document.exitFullscreen();
+        }
+      });
+      window.addEventListener("resize", fit);
+      fit();
+      show((parseInt(location.hash.slice(1), 10) || 1) - 1);
+    </script>
+  </body>
+</html>
