@@ -30,7 +30,11 @@ dotnet run --project Discount.Grpc
 dotnet run --project Basket.API
 ```
 
-Then send the requests in `demo.http` (VS Code "REST Client" extension, or Visual Studio), or with curl:
+Then send the requests, using any of:
+
+- **Postman:** import `GrpcDemo.postman_collection.json`. Run the 5 requests in order; each has tests that check the expected prices (800 · 740 · 650, then 600).
+- **`demo.http`:** VS Code "REST Client" extension, or Visual Studio.
+- **curl:**
 
 ```bash
 curl -X POST http://localhost:5001/basket -H "Content-Type: application/json" \

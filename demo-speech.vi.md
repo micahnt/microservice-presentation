@@ -13,7 +13,7 @@
 3. Khởi động hai service trong hai terminal, đặt cạnh nhau để thấy log của cả hai:
    `dotnet run --project Discount.Grpc`, rồi `dotnet run --project Basket.API`
 4. Làm nóng (warm up): gửi request 1 trong `demo.http` một lần, để lời gọi gRPC đầu tiên trên sân khấu không bị chậm. Gửi lại chỉ ghi đè basket. **Không** gửi request 3, vì nó tạo coupon.
-5. Mở `grpc-demo/demo.http` trong VS Code (extension REST Client) hoặc Visual Studio. Tăng cỡ chữ terminal để đọc được các dòng log.
+5. Mở các request: import `grpc-demo/GrpcDemo.postman_collection.json` vào Postman (cùng các request, đánh số 1–5, có test kiểm tra giá), hoặc mở `grpc-demo/demo.http` trong VS Code (extension REST Client) hoặc Visual Studio. Tăng cỡ chữ terminal để đọc được các dòng log.
 6. **Phương án dự phòng:** chụp screenshot từng bước demo khi mọi thứ đang chạy tốt. Nếu có lỗi trên sân khấu, chiếu screenshot và tiếp tục nói.
 
 ---

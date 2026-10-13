@@ -1,0 +1,133 @@
+{
+  "info": {
+    "name": "gRPC Demo - Basket calls Discount",
+    "description": "Requests for grpc-demo. Start Discount.Grpc (:5002) and Basket.API (:5001) first. Basket.API calls Discount.Grpc over gRPC; these requests are plain REST/JSON to Basket.API.\n\nRun the requests in order. Reset the data before a run by stopping Discount.Grpc and deleting Discount.Grpc/discountdb*.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "basket", "value": "http://localhost:5001" },
+    { "key": "userName", "value": "swn" }
+  ],
+  "item": [
+    {
+      "name": "1. Store basket (GetDiscount x3)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "const items = pm.response.json().items;",
+              "const price = name => items.find(i => i.productName === name).price;",
+              "pm.test('IPhone X: 950 - 150 = 800', () => pm.expect(price('IPhone X')).to.eql(800));",
+              "pm.test('Samsung 10: 840 - 100 = 740', () => pm.expect(price('Samsung 10')).to.eql(740));",
+              "pm.test('Huawei Plus: no coupon yet, still 650', () => pm.expect(price('Huawei Plus')).to.eql(650));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userName\": \"{{userName}}\",\n  \"items\": [\n    { \"productId\": \"5334c996-8457-4cf0-815c-ed2b77c4ff61\", \"productName\": \"IPhone X\",    \"price\": 950, \"quantity\": 1, \"color\": \"Black\" },\n    { \"productId\": \"c67d6323-e8b1-4bdf-9a75-b0d0d2e7e914\", \"productName\": \"Samsung 10\",  \"price\": 840, \"quantity\": 2, \"color\": \"Red\" },\n    { \"productId\": \"4f136e9f-ff8c-4c1f-9a33-d12f689bdab8\", \"productName\": \"Huawei Plus\", \"price\": 650, \"quantity\": 1, \"color\": \"Blue\" }\n  ]\n}"
+        },
+        "url": { "raw": "{{basket}}/basket", "host": ["{{basket}}"], "path": ["basket"] },
+        "description": "Basket.API calls Discount.Grpc (GetDiscount) once per item and stores the discounted prices."
+      }
+    },
+    {
+      "name": "2. Get basket",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('Discounted prices were saved: total 2930', () => pm.expect(pm.response.json().totalPrice).to.eql(2930));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{basket}}/basket/{{userName}}", "host": ["{{basket}}"], "path": ["basket", "{{userName}}"] },
+        "description": "Reads the stored basket back. No gRPC call."
+      }
+    },
+    {
+      "name": "3. Create coupon (CreateDiscount)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const coupon = pm.response.json();",
+              "pm.test('Coupon created for Huawei Plus, amount 50', () => {",
+              "  pm.expect(coupon.productName).to.eql('Huawei Plus');",
+              "  pm.expect(coupon.amount).to.eql(50);",
+              "  pm.expect(coupon.id).to.be.above(0);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"productName\": \"Huawei Plus\", \"description\": \"Huawei Discount\", \"amount\": 50 }"
+        },
+        "url": { "raw": "{{basket}}/discount", "host": ["{{basket}}"], "path": ["discount"] },
+        "description": "Basket.API calls the gRPC CreateDiscount method on Discount.Grpc. Run once per data reset."
+      }
+    },
+    {
+      "name": "4. Store basket again (Huawei now discounted)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "pm.test('Huawei Plus: 650 - 50 = 600', () => pm.expect(pm.response.json().items[0].price).to.eql(600));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userName\": \"{{userName}}\",\n  \"items\": [\n    { \"productId\": \"4f136e9f-ff8c-4c1f-9a33-d12f689bdab8\", \"productName\": \"Huawei Plus\", \"price\": 650, \"quantity\": 1, \"color\": \"Blue\" }\n  ]\n}"
+        },
+        "url": { "raw": "{{basket}}/basket", "host": ["{{basket}}"], "path": ["basket"] },
+        "description": "Same request as before: Basket now gets the new coupon from Discount over gRPC."
+      }
+    },
+    {
+      "name": "5. Delete basket",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.test('204 No Content', () => pm.response.to.have.status(204));"]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "url": { "raw": "{{basket}}/basket/{{userName}}", "host": ["{{basket}}"], "path": ["basket", "{{userName}}"] }
+      }
+    }
+  ]
+}

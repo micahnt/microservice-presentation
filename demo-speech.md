@@ -13,7 +13,7 @@ Companion to `demo-slides.html`. Each section matches one slide. The number in b
 3. Start the two services in two terminals, side by side so both logs are visible:
    `dotnet run --project Discount.Grpc`, then `dotnet run --project Basket.API`
 4. Warm up: send request 1 from `demo.http` once, so the first gRPC call on stage isn't slow. Sending it again simply overwrites the basket. Do **not** send request 3; it creates the coupon.
-5. Open `grpc-demo/demo.http` in VS Code (REST Client extension) or Visual Studio. Increase the terminal font size so the log lines are readable.
+5. Open the requests: either import `grpc-demo/GrpcDemo.postman_collection.json` into Postman (same requests, numbered 1–5, with tests that check the prices), or open `grpc-demo/demo.http` in VS Code (REST Client extension) or Visual Studio. Increase the terminal font size so the log lines are readable.
 6. **Backup plan:** take screenshots of each demo step while it works. If something fails on stage, show the screenshots and keep going.
 
 ---
