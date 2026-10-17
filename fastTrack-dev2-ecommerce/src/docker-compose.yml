@@ -16,32 +16,32 @@ services:
   messagebroker:
     image: rabbitmq:management
 
-  catalog.api:
-    image: ${DOCKER_REGISTRY-}catalogapi
+  ecommerce.catalog.api:
+    image: ${DOCKER_REGISTRY-}ecommercecatalogapi
     build:
       context: .
       dockerfile: Services/Catalog/Ecommerce.Catalog.Api/Dockerfile
 
-  basket.api:
-    image: ${DOCKER_REGISTRY-}basketapi
+  ecommerce.basket.api:
+    image: ${DOCKER_REGISTRY-}ecommercebasketapi
     build:
       context: .
       dockerfile: Services/Basket/Ecommerce.Basket.Api/Dockerfile
 
-  discount.grpc:
-    image: ${DOCKER_REGISTRY-}discountgrpc
+  ecommerce.discount.grpc:
+    image: ${DOCKER_REGISTRY-}ecommercediscountgrpc
     build:
       context: .
       dockerfile: Services/Discount/Ecommerce.Discount.Grpc/Dockerfile
 
-  ordering.api:
-    image: ${DOCKER_REGISTRY-}orderingapi
+  ecommerce.ordering.api:
+    image: ${DOCKER_REGISTRY-}ecommerceorderingapi
     build:
       context: .
       dockerfile: Services/Ordering/Ecommerce.Ordering.Api/Dockerfile
 
-  yarpapigateway:
-    image: ${DOCKER_REGISTRY-}yarpapigateway
+  ecommerce.yarpapigateway:
+    image: ${DOCKER_REGISTRY-}ecommerceyarpapigateway
     build:
       context: .
       dockerfile: ApiGateways/Ecommerce.YarpApiGateway/Dockerfile
