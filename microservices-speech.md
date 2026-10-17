@@ -13,14 +13,14 @@ Speaking pace assumed: about 120 words per minute, with short pauses on code and
 | Opening | 1–2 | 2:00 | 2:00 |
 | Part 1: Introduction to Microservices & DDD | 3–13 | 13:45 | 15:45 |
 | Part 2: Synchronous communication (REST & gRPC) | 14–19 | 10:00 | 25:45 |
-| Part 3: Asynchronous communication & message brokers | 20–25 | 8:30 | 34:15 |
-| Part 4: API Gateway & BFF | 26–30 | 6:30 | 40:45 |
-| Summary and Q&A | 31–33 | 19:15 | 60:00 |
+| Part 3: Asynchronous communication & message brokers | 20–27 | 11:45 | 37:30 |
+| Part 4: API Gateway & BFF | 28–32 | 6:30 | 44:00 |
+| Summary and Q&A | 33–35 | 16:00 | 60:00 |
 
 **If you are running late**, these slides can be shortened to one sentence without losing the story:
 - Slide 7 (benefits and challenges): "The benefits are speed and independent scaling; the cost is complexity, network calls and harder consistency."
 - Slide 8 (when to use): "Use them for a real reason, never without DevOps, and never with a shared database."
-- Slide 24 (messaging setup): "One shared extension method configures MassTransit for every service."
+- Slide 25 (messaging setup): "One shared extension method configures MassTransit for every service."
 
 ---
 
@@ -74,13 +74,15 @@ Let's compare the two directly, row by row.
 
 **Scalability**: a monolith scales as one unit, so to handle more traffic you copy the whole application. Microservices scale each service separately. On Black Friday, I can scale just Basket and Ordering.
 
-**Deployment**: a monolith is simple to deploy, but it's all at once: a one-line change means redeploying everything. Microservices deploy independently, with zero downtime, through their own CI/CD pipelines. The drawing at the bottom shows this. In a monolith, three teams commit to a **single code base** with **one pipeline**, so every release must be coordinated. With microservices, each team has its **own code, its own pipeline, and its own service**, and ships when it's ready.
+**Deployment**: the unit of deployment is different. A monolith is **one deployable unit**: a one-line change means building and redeploying the whole application. Microservices are **many deployable units**: each service is its own container, with its own CI/CD pipeline, released independently. Small systems can host those containers on **Azure Container Apps**; large ones usually run them on **Kubernetes**, for example AKS on Azure. The drawing at the bottom shows this.
+
+One note: zero downtime is not a microservices-only feature. It's an operations question, not an architecture one. A monolith behind a **load balancer** can run version 1 and version 2 side by side, and switch traffic to version 2 without interrupting users.
 
 **Data**: one shared database, versus one database per service.
 
 **Failure**: one bug, like a memory leak, can take down the whole monolith. In microservices, faults are isolated to one service.
 
-And **team fit**: a monolith suits small or new teams. Microservices need an experienced team that's comfortable with containers, DevOps and monitoring. Without those skills, the extra complexity hurts more than it helps.
+And **typical fit**: a monolith is not "for small teams"; it depends on the business domain. It's the usual choice for an **MVP** or a new project, while the domain and its bounded contexts are still being discovered. Microservices fit mature, well-understood domains, and they need a team that's comfortable with containers, DevOps and monitoring.
 
 Neither one is "better". A monolith is a perfectly good choice for many systems.
 
@@ -98,9 +100,9 @@ So microservices don't remove complexity. They **move** it, from inside the code
 
 ## Slide 8: When to use, and when not to  `[9:15]`
 
-Use them when you need **zero-downtime independent deployment**, **independent scaling**, different data stores, or several autonomous teams. And most importantly, when you have a *really good reason*.
+Use them when you need to **release parts of the system independently**, **independent scaling**, different data stores, or several autonomous teams. And most importantly, when you have a *really good reason*. Zero downtime on its own is not a reason: as we just saw, a monolith behind a load balancer can deploy without downtime too.
 
-Avoid them when you'd build a **distributed monolith**: services so tightly coupled that you still deploy them together. That gives you all the complexity and none of the benefits. Also avoid them without a **DevOps foundation**, with a **small team**, for a **brand-new startup** whose domain keeps changing, and never let services **share a database**.
+Avoid them when you'd build a **distributed monolith**: services so tightly coupled that you still deploy them together. That gives you all the complexity and none of the benefits. Also avoid them without a **DevOps foundation**, for an **MVP or early project** whose bounded contexts aren't clear yet, and never let services **share a database**.
 
 ## Slide 9: Design principles  `[10:45]`
 
@@ -256,7 +258,17 @@ On top of RabbitMQ, EShop uses **MassTransit**, a .NET library that creates the 
 
 RabbitMQ also comes with a management web UI, on port 15672 in our setup. It shows every exchange, queue and message rate, and it's the first place to look when a message seems to be lost.
 
-## Slide 23: Basic pub/sub pattern  `[31:00]`
+## Slide 23: RabbitMQ vs. Kafka  `[31:00]`
+
+RabbitMQ isn't the only broker. The other one you'll hear about most is **Kafka**, and the key difference is in one word each: RabbitMQ is a **queue**, Kafka is a **topic log**.
+
+In **RabbitMQ**, the broker pushes each message to a consumer, and once the consumer acknowledges it, the message is gone. A message is a task to be delivered.
+
+In **Kafka**, messages are appended to a **log**, organized into topics and partitions. They stay there for a retention period, even after they're read. Each consumer group keeps its own position in the log, so two groups can read the same messages independently, and you can **replay** old messages.
+
+The table sums it up. RabbitMQ routes with exchanges and keeps order per queue; Kafka routes by topic and partition key and keeps order per partition. RabbitMQ speaks AMQP; Kafka has its own protocol. So RabbitMQ is a great fit for commands and integration events between services, like our checkout. Kafka shines for high-volume event streaming, logs and analytics. EShop uses RabbitMQ, with MassTransit on top.
+
+## Slide 24: Basic pub/sub pattern  `[32:30]`
 
 The most common way to use a broker is **publish/subscribe**.
 
@@ -266,7 +278,7 @@ Compare it with a plain queue: a queue gives each message to **one** consumer; p
 
 On the right, the costs. Brokers usually deliver **at least once**, so a message can arrive twice, and consumers must be **idempotent**: processing it twice must be safe. Order isn't guaranteed. The broker becomes critical, so it must be highly available. And there's **eventual consistency**: the order appears a moment after checkout, not instantly.
 
-## Slide 24: Messaging setup  `[32:15]`
+## Slide 25: Messaging setup  `[33:45]`
 
 Here's how EShop sets this up. On the left is the **contract**: an `IntegrationEvent` base record, and `BasketCheckoutEvent` with user name, total price, address and payment. Both Basket and Ordering reference this same class.
 
@@ -274,7 +286,7 @@ On the right is one shared extension method, `AddMessageBroker`. It configures M
 
 Two details. `ConfigureEndpoints` tells MassTransit to create a queue for every consumer it found, and bind it to the right exchange, so we never declare queues by hand. And the broker address comes from configuration: locally `amqp://localhost:5672`, and inside Docker `amqp://ecommerce-mq:5672`, set by an environment variable in docker-compose. Same code, different environment.
 
-## Slide 25: Publish and consume  `[34:15]`
+## Slide 26: Publish and consume  `[35:45]`
 
 And both ends of the checkout.
 
@@ -286,13 +298,26 @@ Notice: **Basket has no idea Ordering exists.** It only publishes an event. That
 
 One question worth asking about this handler: what if `Publish` succeeds, but deleting the basket fails? Or the other way round? Writing to the database and publishing a message are two separate operations, and either can fail. That's called the **dual write problem**. The standard fix is the **Outbox pattern**: save the event in the same database transaction as the data, and publish it afterwards. The course covers it later; for today, just know the problem exists.
 
+
+## Slide 27: Transactions across services: the Saga pattern  `[37:30]`
+
+One last async topic: transactions. Each service has its own database, so there's **no single database transaction** that covers several services. How do we keep a multi-step business operation consistent?
+
+The answer is the **Saga pattern**: a sequence of **local transactions**, one per service. Look at the happy path: Ordering creates a pending order, Payment charges the card, Inventory reserves the stock, and Ordering confirms the order. Each step commits on its own.
+
+Now the failure path. Inventory is out of stock. We can't roll back Payment's database, because that transaction is already committed, in another service. Instead, every step has a **compensating action** that undoes it in business terms: Payment **refunds** the card, Ordering **cancels** the order. The saga runs these compensations in reverse to bring the system back to a consistent state. So it's compensation, not rollback, and the services stay independent.
+
+There are two ways to coordinate a saga. **Choreography**: each service listens to events from the others and reacts, with no central coordinator. **Orchestration**: one orchestrator, for example a MassTransit state machine, tells each service what to do next.
+
+The course explains this flow; EShop's code itself uses a single event for checkout and doesn't implement a saga.
+
 ---
 
-## Slide 26: Part 4 divider  `[34:30]`
+## Slide 28: Part 4 divider  `[37:45]`
 
 Last topic: the API gateway, and the Backends for Frontends pattern.
 
-## Slide 27: The role of an API Gateway  `[36:00]`
+## Slide 29: The role of an API Gateway  `[39:15]`
 
 Without a gateway, every client must know every service's address, and every service must handle authentication, SSL and rate limiting on its own.
 
@@ -302,7 +327,7 @@ On the right is the pipeline a request passes through: validation, IP allowlisti
 
 The risk: one gateway for everything can become a **bottleneck** and a **single point of failure**. Which leads to the next pattern.
 
-## Slide 28: Backends for Frontends  `[37:15]`
+## Slide 30: Backends for Frontends  `[40:30]`
 
 **Backends for Frontends**, or BFF, means **one gateway per type of client**, instead of one gateway for everyone.
 
@@ -310,7 +335,7 @@ Why? Different clients need different things. A phone screen needs less data tha
 
 EShop has only one client, Shopping.Web, so one gateway is enough. You'd add BFFs when, say, a mobile app arrives.
 
-## Slide 29: Introduction to YARP  `[38:45]`
+## Slide 31: Introduction to YARP  `[42:00]`
 
 EShop implements its gateway with **YARP**, which stands for "Yet Another Reverse Proxy". It's a reverse-proxy library from Microsoft, built on ASP.NET Core. It supports HTTP/2, gRPC and WebSockets, load balancing and health checks, and it plugs into normal ASP.NET Core middleware, like the rate limiter.
 
@@ -318,7 +343,7 @@ The code on the left is the *entire* EShop gateway: add the reverse proxy, load 
 
 On the right is the config. A **route** matches a path, like `/catalog-service/` plus anything, and points to a **cluster**. The **transform** removes the prefix. The cluster says where the service lives: `catalog.api:8080`. So `/catalog-service/products` becomes `catalog.api:8080/products`. And the ordering route also applies the rate limiting policy.
 
-## Slide 30: Ocelot, and YARP vs. Ocelot  `[40:45]`
+## Slide 32: Ocelot, and YARP vs. Ocelot  `[44:00]`
 
 The other well-known .NET option is **Ocelot**, an open-source API gateway library configured with an `ocelot.json` file. EShop doesn't use it, so at the bottom of the slide I've written the same Catalog route for Ocelot, just for comparison. An **upstream** path is what the client calls; a **downstream** path and host are where Ocelot forwards it. The startup code is just `AddOcelot` and `UseOcelot`.
 
@@ -340,7 +365,7 @@ Both implement the gateway routing pattern. YARP is the one this course uses.
 
 ---
 
-## Slide 31: Summary  `[42:00]`
+## Slide 33: Summary  `[45:15]`
 
 Let's wrap up.
 
@@ -350,11 +375,11 @@ Let's wrap up.
 
 For **synchronous** communication, **REST** for client-facing APIs and **gRPC with Protobuf** for fast internal calls. For **asynchronous** communication, **events** through a **message broker** with pub/sub, for decoupled workflows. And an **API gateway**, YARP or Ocelot, as the single front door, with **BFF** when you have several kinds of clients.
 
-## Slide 32: References  `[42:15]`
+## Slide 34: References  `[45:30]`
 
 The course, the slides and all the code are listed here, from section 4 up to section 20, the complete system. For DDD, Eric Evans' book is the original, and Microsoft's free e-book on .NET microservices architecture is the best next step.
 
-## Slide 33: Questions  `[60:00]`
+## Slide 35: Questions  `[60:00]`
 
 That's all from me. Thank you! I'm happy to take your questions.
 

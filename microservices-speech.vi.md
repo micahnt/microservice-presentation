@@ -48,13 +48,15 @@ Về **structure**, monolith là một khối duy nhất, một app và một da
 
 Về **scalability**, monolith scale như một khối, nên muốn chịu thêm tải thì phải nhân bản cả app. Microservices scale từng service riêng. Vào ngày Black Friday, mình có thể chỉ scale Basket và Ordering.
 
-Về **deployment**, monolith deploy đơn giản nhưng phải deploy cả khối (sửa một dòng code cũng phải deploy lại toàn bộ.) Microservices deploy độc lập, không downtime, qua CI/CD pipeline riêng của từng service. Hình vẽ ở dưới minh họa điều này. Với monolith, ba team cùng commit vào **một code base duy nhất** với **một pipeline**, nên mỗi lần release lên prod đều phải phối hợp. Với microservices, mỗi team có **code riêng, pipeline riêng, và service riêng**, và release khi nào sẵn sàng thì release.
+Về **deployment**, đơn vị deploy khác nhau. Monolith là **một đơn vị deploy duy nhất**: sửa một dòng code cũng phải build và deploy lại toàn bộ application. Microservices là **nhiều đơn vị deploy**: mỗi service là một container riêng, có CI/CD pipeline riêng, và release độc lập. Hệ thống nhỏ có thể host các container đó trên **Azure Container Apps**; hệ thống lớn thường chạy chúng trên **Kubernetes**, ví dụ AKS trên Azure. Hình vẽ ở dưới minh họa điều này.
+
+Một lưu ý: zero downtime không phải là tính năng riêng của microservices. Đó là chuyện vận hành, triển khai, chứ không phải chuyện kiến trúc. Một monolith đặt sau **load balancer** có thể chạy song song version 1 và version 2, rồi chuyển traffic sang version 2 mà không làm gián đoạn người dùng.
 
 Về **data**, một database dùng chung so với mỗi service một database.
 
 Về **failure**, một bug, ví dụ memory leak, có thể làm sập cả monolith, trong khi microservices cô lập lỗi trong một service (fault isolation).
 
-Và về **team fit**, monolith phù hợp với team nhỏ hoặc team mới. Microservices cần một team có kinh nghiệm, quen với container, DevOps và monitoring. Thiếu những kỹ năng đó thì độ phức tạp tăng thêm sẽ gây hại nhiều hơn lợi.
+Và về **typical fit**, monolith không phải là "dành cho team nhỏ"; nó tùy vào business domain. Monolith thường là lựa chọn cho dự án **MVP** hoặc dự án ban đầu, khi domain và các bounded context còn đang được tìm ra. Microservices phù hợp với các domain đã rõ ràng, ổn định, và cần một team quen với container, DevOps và monitoring.
 
 Không bên nào là "tốt hơn". Với nhiều hệ thống, monolith là một lựa chọn hoàn toàn hợp lý. (vd Dự án mới khởi nghiệp (MVP), Team size tầm 15-20 người,...)
 
@@ -70,9 +72,9 @@ Nên cơ bản là microservices không xóa bỏ độ phức tạp. Nó **chuy
 
 ## Slide 8: When to use, and when not to  `[9:15]`
 
-Hãy dùng microservice khi mình cần **zero-downtime independent deployment**, **independent scaling**, các data store khác nhau, có nhiều team tự chủ, hoặc là khi mình có một lý do (hệ thống Monolith hiện tại không thể chịu tải được nữa, team size quá lớn, mn giẫm chân nhau).
+Hãy dùng microservice khi mình cần **release từng phần của hệ thống độc lập**, **independent scaling**, các data store khác nhau, có nhiều team tự chủ, hoặc là khi mình có một lý do (hệ thống Monolith hiện tại không thể chịu tải được nữa, team size quá lớn, mn giẫm chân nhau). Chỉ riêng zero downtime thì không phải là lý do: như vừa thấy, monolith đặt sau load balancer cũng deploy được mà không downtime.
 
-Hãy tránh khi mình sẽ xây một **distributed monolith**: tức là microservice nhưng các service bị tight coupling đến mức vẫn phải deploy cùng nhau. Cũng nên tránh khi chưa có Devops, khi chỉ có **team nhỏ**, khi là **startup mới** mà domain còn thay đổi liên tục, và đừng bao giờ để các service **dùng chung database**.
+Hãy tránh khi mình sẽ xây một **distributed monolith**: tức là microservice nhưng các service bị tight coupling đến mức vẫn phải deploy cùng nhau. Cũng nên tránh khi chưa có Devops, khi là dự án **MVP hoặc dự án ban đầu** mà các bounded context còn chưa rõ, và đừng bao giờ để các service **dùng chung database**.
 
 ## Slide 9: Design principles  `[10:45]`
 
@@ -226,7 +228,17 @@ Bên trên RabbitMQ, ta có thể dùng **MassTransit**, một thư viện .NET 
 
 RabbitMQ cũng có sẵn một management web UI. Nó hiển thị mọi exchange, queue và message rate, và đó là nơi đầu tiên nên xem khi một message có vẻ bị thất lạc.
 
-## Slide 23: Basic pub/sub pattern  `[31:00]`
+## Slide 23: RabbitMQ vs. Kafka  `[31:00]`
+
+RabbitMQ không phải broker duy nhất. Broker thứ hai mọi người hay nghe nhất là **Kafka**, và khác biệt chính gói gọn trong một chữ: RabbitMQ là **queue**, Kafka là **topic log**.
+
+Với **RabbitMQ**, broker đẩy (push) từng message đến một consumer, và khi consumer xác nhận (ack) thì message bị xóa. Message giống như một việc cần được giao.
+
+Với **Kafka**, message được ghi nối tiếp vào một **log**, chia theo topic và partition. Message được giữ lại trong một khoảng thời gian (retention), kể cả sau khi đã được đọc. Mỗi consumer group giữ vị trí đọc riêng trong log, nên hai group có thể đọc cùng các message một cách độc lập, và có thể **đọc lại (replay)** message cũ.
+
+Bảng tóm tắt lại: RabbitMQ route bằng exchange và giữ thứ tự theo từng queue; Kafka route theo topic và partition key, giữ thứ tự theo từng partition. RabbitMQ dùng AMQP; Kafka có protocol riêng. Nên RabbitMQ rất hợp cho command và integration event giữa các service, như checkout của mình. Kafka mạnh ở event streaming khối lượng lớn, log và analytics. EShop dùng RabbitMQ, với MassTransit bên trên.
+
+## Slide 24: Basic pub/sub pattern  `[32:30]`
 
 Cách dùng broker phổ biến nhất là mô hình **publish/subscribe** Trong đó, một service chỉ cần phát sự kiện lên hệ thống, và tất cả các service khác có đăng ký quan tâm sẽ tự động nhận được sự kiện đó để xử lý.
 
@@ -241,7 +253,7 @@ Bên phải là các cái giá phải trả cho Event-Driven Architecture / Asyn
 - Khó trace và debug.
 - Và có **eventual consistency**: order xuất hiện sau checkout một lúc, không phải ngay lập tức.
 
-## Slide 24: Messaging setup  `[32:15]`
+## Slide 25: Messaging setup  `[33:45]`
 
 Đây là cách EShop thiết lập việc này. Bên trái là **contract**: một base record `IntegrationEvent`, và `BasketCheckoutEvent` với user name, total price, address và payment. Cả Basket và Ordering đều reference cùng class này.
 
@@ -249,7 +261,7 @@ Bên phải là một extension method dùng chung, `AddMessageBroker`. Nó cấ
 
 Hai chi tiết. `ConfigureEndpoints` bảo MassTransit tạo một queue cho mỗi consumer mà nó tìm thấy, và bind nó vào đúng exchange, nên mình không bao giờ phải khai báo queue bằng tay. Và địa chỉ broker lấy từ configuration: chạy local là `amqp://localhost:5672`, còn bên trong Docker là `amqp://ecommerce-mq:5672`, được set bằng environment variable trong docker-compose. Cùng một code, khác môi trường.
 
-## Slide 25: Publish and consume  `[34:15]`
+## Slide 26: Publish and consume  `[35:45]`
 
 Và cả hai đầu của luồng checkout.
 
@@ -261,13 +273,26 @@ Bên phải là **consumer** trong Ordering. Nó implement **`IConsumer<BasketCh
 
 Nói thêm 1 chút về gtiep bất đồng bộ thì: nếu `Publish` thành công, nhưng việc xóa giỏ hàng thất bại thì sao? Hoặc ngược lại? Ghi vào database và publish một message là hai thao tác riêng biệt, và cái nào cũng có thể thất bại. Đó gọi là **dual write problem**. Cách khắc phục chuẩn là **Outbox pattern**: lưu event trong cùng database transaction với dữ liệu, rồi publish sau. 
 
+
+## Slide 27: Transactions across services: the Saga pattern  `[37:30]`
+
+Một chủ đề async cuối cùng: transaction. Mỗi service có database riêng, nên **không có một database transaction duy nhất** bao trùm nhiều service. Vậy làm sao giữ một nghiệp vụ nhiều bước được nhất quán?
+
+Câu trả lời là **Saga pattern**: một chuỗi các **local transaction**, mỗi service một transaction. Nhìn luồng thành công: Ordering tạo order ở trạng thái pending, Payment trừ tiền thẻ, Inventory giữ hàng trong kho, rồi Ordering xác nhận order. Mỗi bước tự commit.
+
+Giờ đến luồng lỗi. Inventory hết hàng. Mình không thể rollback database của Payment, vì transaction đó đã commit rồi, ở một service khác. Thay vào đó, mỗi bước có một **compensating action** (hành động bù trừ) để hoàn tác nó về mặt nghiệp vụ: Payment **hoàn tiền**, Ordering **hủy** order. Saga chạy các bước bù trừ này theo thứ tự ngược lại để đưa hệ thống về trạng thái nhất quán ban đầu. Tức là bù trừ, không phải rollback như transaction của database, và các service vẫn độc lập với nhau.
+
+Có hai cách điều phối saga. **Choreography**: mỗi service lắng nghe event của các service khác và tự phản ứng, không có bộ điều phối trung tâm. **Orchestration**: một orchestrator trung tâm, ví dụ một state machine của MassTransit, chỉ định từng service làm gì tiếp theo.
+
+Khóa học có giải thích luồng này; còn code của EShop chỉ dùng một event cho checkout và không implement saga.
+
 ---
 
-## Slide 26: Part 4 divider  `[34:30]`
+## Slide 28: Part 4 divider  `[37:45]`
 
 Chủ đề cuối cùng: API gateway, và pattern Backends for Frontends.
 
-## Slide 27: The role of an API Gateway  `[36:00]`
+## Slide 29: The role of an API Gateway  `[39:15]`
 
 Không có gateway, mỗi client phải biết địa chỉ của mọi service, và mỗi service phải tự xử lý authentication, SSL và rate limiting.
 
@@ -277,14 +302,14 @@ Bên phải là pipeline mà một request đi qua. Trước khi đến được
 
 Rủi ro: một gateway cho tất cả mọi thứ có thể trở thành **bottleneck** và **single point of failure**. Điều đó dẫn đến pattern tiếp theo.
 
-## Slide 28: Backends for Frontends  `[37:15]`
+## Slide 30: Backends for Frontends  `[40:30]`
 
 **Backends for Frontends**, hay BFF, nghĩa là **một gateway cho mỗi loại client**, thay vì một gateway cho tất cả client.
 
 Tại sao? Vì các client khác nhau cần những thứ khác nhau. Màn hình điện thoại cần ít dữ liệu hơn trang desktop, khác DTO. Nếu một gateway phục vụ tất cả, nó sẽ chứa nhiều logic riêng của từng client và trở thành bottleneck mà team nào cũng phải sửa. Với BFF, web team sở hữu web gateway, mobile team sở hữu mobile gateway, và mỗi cái trả về đúng những gì frontend của nó cần.
 
 
-## Slide 29: Introduction to YARP  `[38:45]`
+## Slide 31: Introduction to YARP  `[42:00]`
 
 **YARP**, viết tắt của "Yet Another Reverse Proxy". Đây là một reverse-proxy library của Microsoft, xây trên .NET Core. Nó hỗ trợ HTTP/2, gRPC và WebSockets, load balancing, health check, và có thể tận dụng trực tiếp các middleware của .NET Core, vd như Rate Limiting hay Authentication.
 
@@ -298,7 +323,7 @@ vì vậy client gọi đến gateway /catalog-service/products tức là gọi 
 Và route ordering còn áp dụng thêm rate limiting policy.
 
 
-## Slide 30: Ocelot, and YARP vs. Ocelot  `[40:45]`
+## Slide 32: Ocelot, and YARP vs. Ocelot  `[44:00]`
 
 1 lựa chọn khác trong .NET là **Ocelot**, một API gateway library open-source được cấu hình bằng file `ocelot.json`. Đường dẫn **upstream** là cái client gọi; đường dẫn và host **downstream** là nơi Ocelot forward đến. Code khởi động trong program.cs chỉ là `AddOcelot` và `UseOcelot`.
 
@@ -319,7 +344,7 @@ Và **trong EShop**: dùng YARP, không dùng Ocelot.
 Cả hai đều implement gateway routing pattern. 
 ---
 
-## Slide 31: Summary  `[42:00]`
+## Slide 33: Summary  `[45:15]`
 
 Mình tóm tắt lại.
 
@@ -330,12 +355,12 @@ Mình tóm tắt lại.
 Với giao tiếp **synchronous**, dùng **REST** cho các API hướng client và **gRPC với Protobuf** cho các lời gọi nội bộ nhanh. Với giao tiếp **asynchronous**, dùng **event** qua **message broker** với pub/sub, cho các workflow decoupled. Và một **API gateway**, YARP hoặc Ocelot, làm cánh cửa trước duy nhất, cùng **BFF** khi có nhiều loại client.
 
 
-## Slide 32: References `[43:45]`
+## Slide 34: References `[47:00]`
 
 cuốn sách của Eric Evans,
 e-book của Microsoft
 
-## Slide 33: Questions `[60:00]`
+## Slide 35: Questions `[60:00]`
 
 Phần tbay của e đến đây là hết, mn ai có câu hỏi j ko ạ
 

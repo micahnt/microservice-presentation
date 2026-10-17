@@ -528,11 +528,6 @@
           <th style="width: 110px">Time</th>
         </tr>
         <tr>
-          <td></td>
-          <td>Opening</td>
-          <td>~2 min</td>
-        </tr>
-        <tr>
           <td>1</td>
           <td><b>Introduction to Microservices &amp; DDD</b>: monolith vs. microservices, design principles, DDD, bounded contexts</td>
           <td>~14 min</td>
@@ -544,8 +539,8 @@
         </tr>
         <tr>
           <td>3</td>
-          <td><b>Asynchronous communication</b>: event-driven basics, message brokers (RabbitMQ), pub/sub</td>
-          <td>~9 min</td>
+          <td><b>Asynchronous communication</b>: event-driven basics, message brokers (RabbitMQ vs. Kafka), pub/sub, Saga</td>
+          <td>~12 min</td>
         </tr>
         <tr>
           <td>4</td>
@@ -555,7 +550,7 @@
         <tr>
           <td>5</td>
           <td>Summary and Q&amp;A</td>
-          <td>~20 min</td>
+          <td>~15 min</td>
         </tr>
       </table>
     </section>
@@ -634,8 +629,8 @@
         </tr>
         <tr>
           <td>Deployment</td>
-          <td>Simple, all at once</td>
-          <td>Independent, zero-downtime, CI/CD</td>
+          <td>One deployable unit: any change redeploys the whole app</td>
+          <td>Many deployable units: one container per service, released independently</td>
         </tr>
         <tr>
           <td>Data</td>
@@ -648,28 +643,26 @@
           <td>Faults are isolated</td>
         </tr>
         <tr>
-          <td>Team fit</td>
-          <td>Small or new teams</td>
-          <td>Experienced teams with container and DevOps skills</td>
+          <td>Typical fit</td>
+          <td>MVPs and new projects, until the bounded contexts are clear</td>
+          <td>Mature, well-understood domains; needs container and DevOps skills</td>
         </tr>
       </table>
-      <div class="g2" style="grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr)">
+      <div class="g2" style="grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)">
         <div class="box red tight">
-          <div class="hd">Monolith deployment</div>
+          <div class="hd">Monolith: 1 deployable unit</div>
           <div class="flow center">
-            <span class="chip">Teams 1·2·3</span><svg class="arr" style="width: 26px"><use href="#ar" /></svg><span class="chip">1 code base</span><svg class="arr" style="width: 26px"><use href="#ar" /></svg><span class="chip">1 pipeline</span
-            ><svg class="arr" style="width: 26px"><use href="#ar" /></svg><span class="chip">Production</span>
+            <span class="chip">1 code base</span><svg class="arr" style="width: 26px"><use href="#ar" /></svg><span class="chip">1 pipeline</span><svg class="arr" style="width: 26px"><use href="#ar" /></svg><span class="chip">Load balancer</span><svg class="arr" style="width: 26px"><use href="#ar" /></svg><span class="chip grey dashed">v1</span><span class="chip teal">v2</span>
           </div>
+          <p class="center note" style="margin-top: 6px">Zero downtime is possible here too: the load balancer moves traffic from v1 to v2.</p>
         </div>
         <div class="box teal tight">
-          <div class="hd">Microservices deployment</div>
-          <div class="stack" style="gap: 6px">
-            <div class="flow center">
-              <span class="chip teal">Product team</span><svg class="arr"><use href="#ar" /></svg><span class="chip">own pipeline</span><svg class="arr"><use href="#ar" /></svg><span class="chip teal">Product service</span>
-            </div>
-            <div class="flow center">
-              <span class="chip teal">Order team</span><svg class="arr"><use href="#ar" /></svg><span class="chip">own pipeline</span><svg class="arr"><use href="#ar" /></svg><span class="chip teal">Order service</span>
-            </div>
+          <div class="hd">Microservices: many deployable units</div>
+          <div class="flow center">
+            <span class="chip">Catalog</span><span class="chip">Basket</span><span class="chip">Ordering</span><svg class="arr" style="width: 26px"><use href="#ar" /></svg><span class="chip">1 container + pipeline each</span>
+          </div>
+          <div class="flow center" style="margin-top: 6px">
+            <span class="chip teal">Azure Container Apps<small>small systems</small></span><span class="note">or</span><span class="chip teal">Kubernetes (AKS)<small>large systems</small></span>
           </div>
         </div>
       </div>
@@ -699,7 +692,7 @@
             <li>Overall system <b>complexity</b></li>
             <li>Network problems and <b>latency</b>; chatty calls</li>
             <li>Harder end-to-end development and testing</li>
-            <li><b>Data consistency</b> (eventual consistency)</li>
+            <li><b>Data consistency</b> across services (eventual consistency, Saga)</li>
             <li>Deployment needs DevOps investment</li>
             <li>Centralized logging and monitoring required</li>
             <li>Debugging across many services is hard</li>
@@ -715,7 +708,7 @@
         <div class="box teal left">
           <div class="hd">Use them when you need</div>
           <ul>
-            <li>Independent deployment with <b>zero downtime</b></li>
+            <li>To <b>release parts</b> of the system independently</li>
             <li><b>Independent scaling</b> of parts of the app</li>
             <li>Different data stores per use case</li>
             <li>Autonomous teams that own services</li>
@@ -727,13 +720,13 @@
           <ul>
             <li>You would build a <b>distributed monolith</b> (the worst case)</li>
             <li>You have no DevOps, CI/CD, containers, or monitoring</li>
-            <li>The team is <b>small</b></li>
-            <li>The product is a <b>brand-new startup</b> with an unclear domain</li>
+            <li>It's an <b>MVP</b> or early project: the <b>bounded contexts</b> aren't clear yet</li>
             <li>Services would use a <b>shared database</b> (anti-pattern)</li>
           </ul>
         </div>
       </div>
       <div class="callout">Distributed monolith = all the complexity of microservices, none of the benefits</div>
+      <p class="note">Zero downtime alone is not a reason: a monolith behind a load balancer can deploy without downtime too. Small systems can run on Azure Container Apps, large ones on Kubernetes (AKS).</p>
     </section>
 
     <!-- 9 -->
@@ -967,7 +960,7 @@
           </div>
           <ul>
             <li>Client sends a message and <b>does not wait</b></li>
-            <li><b>AMQP</b> via a broker (RabbitMQ, Kafka)</li>
+            <li>Via a <b>broker</b>: RabbitMQ (AMQP), Kafka</li>
             <li>One-to-one (queue), one-to-many (<b>pub/sub</b>)</li>
             <li><b>Loose coupling</b>: the broker stores and retries</li>
           </ul>
@@ -1242,12 +1235,39 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
               <td>By message header attributes</td>
             </tr>
           </table>
-          <p class="note">Similar brokers: Apache Kafka, Azure Service Bus, ActiveMQ</p>
+          <p class="note">Similar brokers: Apache Kafka (compared on the next slide), Azure Service Bus, ActiveMQ</p>
         </div>
       </div>
     </section>
 
     <!-- 23 -->
+    <section class="slide dense">
+      <h1>RabbitMQ vs. Kafka: a queue vs. a topic log</h1>
+      <div class="g2">
+        <div class="box red">
+          <div class="hd">RabbitMQ · queue</div>
+          <div class="flow center"><span class="chip">Producer</span><svg class="arr" style="width: 30px"><use href="#ar" /></svg><span class="chip red">Exchange</span><svg class="arr" style="width: 30px"><use href="#ar" /></svg><span class="chip red">Queue</span><svg class="arr" style="width: 30px"><use href="#ar" /></svg><span class="chip">Consumer</span></div>
+          <p class="center note" style="margin-top: 6px">The broker pushes each message to a consumer and removes it after the consumer acknowledges it.</p>
+        </div>
+        <div class="box teal">
+          <div class="hd">Kafka · topic (log)</div>
+          <div class="flow center"><span class="chip">Producer</span><svg class="arr" style="width: 30px"><use href="#ar" /></svg><span class="chip teal">Topic: m1 · m2 · m3 · m4</span><svg class="arr" style="width: 30px"><use href="#ar" /></svg><div class="stack" style="gap: 4px"><span class="chip">Group A, at m4</span><span class="chip">Group B, at m2</span></div></div>
+          <p class="center note" style="margin-top: 6px">Messages stay in the log; each consumer group pulls at its own position and can replay.</p>
+        </div>
+      </div>
+      <table class="small">
+        <tr><th style="width: 160px"></th><th>RabbitMQ</th><th>Kafka</th></tr>
+        <tr><td>Model</td><td>Message broker with <b>queues</b>; pushes to consumers</td><td>Distributed, append-only <b>log</b> split into topics; consumers pull</td></tr>
+        <tr><td>After consuming</td><td>Message is removed (after ack)</td><td>Message is kept for the retention period; can be <b>replayed</b></td></tr>
+        <tr><td>Routing</td><td>Exchanges: direct, fanout, topic, headers</td><td>Topics, split into partitions by key</td></tr>
+        <tr><td>Ordering</td><td>Per queue</td><td>Per partition</td></tr>
+        <tr><td>Protocol</td><td>AMQP</td><td>Kafka's own binary protocol over TCP</td></tr>
+        <tr><td>Best for</td><td>Commands, task queues, integration events between services</td><td>High-volume event streaming, logs, analytics, event sourcing</td></tr>
+        <tr><td>In EShop</td><td style="color: var(--teal); font-weight: 700">✓ Used, with MassTransit</td><td style="color: var(--red); font-weight: 700">✗ Not used</td></tr>
+      </table>
+    </section>
+
+    <!-- 24 -->
     <section class="slide">
       <h1>Basic pub/sub pattern</h1>
       <div class="row" style="align-items: center">
@@ -1298,7 +1318,7 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
       </div>
     </section>
 
-    <!-- 24 -->
+    <!-- 25 -->
     <section class="slide">
       <h1>Messaging setup: the shared BuildingBlocks.Messaging library</h1>
       <div class="g2 fill">
@@ -1348,7 +1368,7 @@ app.MapGrpcService&lt;DiscountService&gt;();</pre>
       </div>
     </section>
 
-    <!-- 25 -->
+    <!-- 26 -->
     <section class="slide">
       <h1>Publish (Basket) → consume (Ordering)</h1>
       <div class="row fill" style="align-items: stretch">
@@ -1406,14 +1426,43 @@ services.AddMessageBroker(configuration,
       <div class="callout">Basket has no idea Ordering exists. It only publishes an event.</div>
     </section>
 
-    <!-- 26 -->
+    <!-- 27 -->
+    <section class="slide">
+      <h1>Transactions across services: the Saga pattern</h1>
+      <p class="intro">Each service has its own database, so there is no single database transaction across services. A saga is a sequence of <b>local transactions</b> instead.</p>
+      <div class="stack" style="gap: 10px">
+        <div class="flow"><span class="cap" style="width: 120px; margin: 0">Happy path</span><span class="chip">Ordering<small>create order (pending)</small></span><svg class="arr"><use href="#ar" /></svg><span class="chip">Payment<small>charge card</small></span><svg class="arr"><use href="#ar" /></svg><span class="chip">Inventory<small>reserve stock</small></span><svg class="arr"><use href="#ar" /></svg><span class="chip teal">Ordering<small>confirm order</small></span></div>
+        <div class="flow"><span class="cap" style="width: 120px; margin: 0; color: var(--red)">Failure</span><span class="chip red">Ordering<small>cancel order</small></span><svg class="arr" style="color: var(--red)"><use href="#arl" /></svg><span class="chip red">Payment<small>refund card</small></span><svg class="arr" style="color: var(--red)"><use href="#arl" /></svg><span class="chip red">Inventory ✗<small>out of stock</small></span><span class="note">&nbsp; compensating actions run in reverse</span></div>
+      </div>
+      <div class="g2">
+        <div class="box red left">
+          <div class="hd">Compensation, not rollback</div>
+          <ul>
+            <li>Each step <b>commits</b> its own local transaction</li>
+            <li>Each step has a <b>compensating action</b> that undoes it in business terms: refund, cancel, release</li>
+            <li>On failure, the saga runs the compensations to bring the system back to a consistent state</li>
+            <li>Services stay <b>independent</b>: no shared database, no distributed lock</li>
+          </ul>
+        </div>
+        <div class="box teal left">
+          <div class="hd">Two ways to coordinate</div>
+          <ul>
+            <li><b>Choreography</b>: each service reacts to events from the others. No central coordinator.</li>
+            <li><b>Orchestration</b>: a central orchestrator tells each service what to do next, for example a MassTransit state machine.</li>
+          </ul>
+        </div>
+      </div>
+      <p class="note">Example flow from the course (lecture 288). Payment and Inventory are not in EShop, and EShop's code doesn't implement a saga.</p>
+    </section>
+
+    <!-- 28 -->
     <section class="slide divider">
       <div class="part">Part 4</div>
       <h1>API Gateway &amp; BFF</h1>
       <p class="intro">One front door for all clients, or one per kind of client</p>
     </section>
 
-    <!-- 27 -->
+    <!-- 29 -->
     <section class="slide">
       <h1>The role of an API Gateway</h1>
       <p class="intro">Without a gateway, every client must know every service's address, and every service handles auth, SSL and rate limiting itself.</p>
@@ -1446,7 +1495,7 @@ services.AddMessageBroker(configuration,
       </div>
     </section>
 
-    <!-- 28 -->
+    <!-- 30 -->
     <section class="slide big">
       <h1>Pattern: Backends for Frontends (BFF)</h1>
       <p class="intro">One gateway per type of client, instead of one gateway for everyone.</p>
@@ -1476,7 +1525,7 @@ services.AddMessageBroker(configuration,
       </div>
     </section>
 
-    <!-- 29 -->
+    <!-- 31 -->
     <section class="slide">
       <h1>Introduction to YARP (Yet Another Reverse Proxy)</h1>
       <div class="row fill">
@@ -1531,7 +1580,7 @@ app.MapReverseProxy();</pre>
       </div>
     </section>
 
-    <!-- 30 -->
+    <!-- 32 -->
     <section class="slide">
       <h1>Introduction to Ocelot, and YARP vs. Ocelot</h1>
       <p class="intro">Ocelot is an open-source API gateway library for .NET, configured with an <code>ocelot.json</code> file.</p>
@@ -1586,7 +1635,7 @@ app.Run();</pre>
       </div>
     </section>
 
-    <!-- 31 -->
+    <!-- 33 -->
     <section class="slide">
       <h1>Summary</h1>
       <div class="g2 fill" style="grid-template-rows: repeat(3, 1fr)">
@@ -1613,7 +1662,7 @@ app.Run();</pre>
       </div>
     </section>
 
-    <!-- 32 -->
+    <!-- 34 -->
     <section class="slide">
       <h1>References</h1>
       <ul style="font-size: 19px; line-height: 1.75">
@@ -1626,7 +1675,7 @@ app.Run();</pre>
       </ul>
     </section>
 
-    <!-- 33 -->
+    <!-- 35 -->
     <section class="slide title-slide">
       <h1>Questions?</h1>
       <p class="intro" style="margin: 0; font-size: 24px">Thank you!</p>
