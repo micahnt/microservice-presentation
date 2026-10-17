@@ -1,7 +1,7 @@
 ﻿using Ecommerce.Discount.Grpc.Data;
 using Ecommerce.Discount.Grpc.Models;
 using Grpc.Core;
-using Mapster;
+using Ecommerce.Discount.Grpc.Mappers;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ecommerce.Discount.Grpc.Services;
@@ -21,13 +21,13 @@ public class DiscountService
 
         logger.LogInformation("Discount is retrieved for ProductName : {productName}, Amount : {amount}", coupon.ProductName, coupon.Amount);
 
-        var couponModel = coupon.Adapt<CouponModel>();
+        var couponModel = coupon.ToModel();
         return couponModel;
     }
 
     public override async Task<CouponModel> CreateDiscount(CreateDiscountRequest request, ServerCallContext context)
     {
-        var coupon = request.Coupon.Adapt<Coupon>();
+        var coupon = request.Coupon?.ToEntity();
         if (coupon is null)
             throw new RpcException(new Status(StatusCode.InvalidArgument, "Invalid request object."));
 
@@ -36,14 +36,14 @@ public class DiscountService
 
         logger.LogInformation("Discount is successfully created. ProductName : {ProductName}", coupon.ProductName);
 
-        var couponModel = coupon.Adapt<CouponModel>();
+        var couponModel = coupon.ToModel();
         return couponModel;
     }
 
 
     public override async Task<CouponModel> UpdateDiscount(UpdateDiscountRequest request, ServerCallContext context)
     {
-        var coupon = request.Coupon.Adapt<Coupon>();
+        var coupon = request.Coupon?.ToEntity();
         if (coupon is null)
             throw new RpcException(new Status(StatusCode.InvalidArgument, "Invalid request object."));
 
@@ -52,7 +52,7 @@ public class DiscountService
 
         logger.LogInformation("Discount is successfully updated. ProductName : {ProductName}", coupon.ProductName);
 
-        var couponModel = coupon.Adapt<CouponModel>();
+        var couponModel = coupon.ToModel();
         return couponModel;
     }
 

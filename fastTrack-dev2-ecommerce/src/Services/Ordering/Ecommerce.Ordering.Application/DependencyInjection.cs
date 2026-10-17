@@ -1,25 +1,19 @@
-﻿using Ecommerce.Shared.Behaviors;
-using Ecommerce.Shared.Messaging.MassTransit;
-using Microsoft.Extensions.Configuration;
+using Ecommerce.Ordering.Application.Orders;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.FeatureManagement;
-using System.Reflection;
 
 namespace Ecommerce.Ordering.Application;
+
 public static class DependencyInjection
 {
-    public static IServiceCollection AddApplicationServices
-        (this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
-        services.AddMediatR(config =>
-        {
-            config.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly());
-            config.AddOpenBehavior(typeof(ValidationBehavior<,>));
-            config.AddOpenBehavior(typeof(LoggingBehavior<,>));
-        });
-
         services.AddFeatureManagement();
-        services.AddMessageBroker(configuration, Assembly.GetExecutingAssembly());
+
+        services.AddScoped<IOrderCreator, OrderCreator>();
+        services.AddScoped<IOrderReader, OrderReader>();
+        services.AddScoped<IOrderUpdater, OrderUpdater>();
+        services.AddScoped<IOrderDeleter, OrderDeleter>();
 
         return services;
     }

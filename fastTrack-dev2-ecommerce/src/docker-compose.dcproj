@@ -7,7 +7,10 @@
     <ProjectGuid>6dcbec70-4866-4297-9ad0-73928ccfa987</ProjectGuid>
     <DockerLaunchAction>None</DockerLaunchAction>
     <DockerServiceUrl>{Scheme}://localhost:{ServicePort}</DockerServiceUrl>
-    <DockerServiceName>ecommerce.ordering.api</DockerServiceName>
+    <DockerServiceName>ecommerce.yarpapigateway</DockerServiceName>
+    <!-- Same project name as `name:` in docker-compose.yml, so Visual Studio (which passes -p) and the
+         CLI share containers and volumes instead of VS creating a separate dockercompose<hash> project. -->
+    <DockerComposeProjectName>ecommerce</DockerComposeProjectName>
   </PropertyGroup>
   <ItemGroup>
     <None Include="docker-compose.override.yml">

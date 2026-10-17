@@ -1,26 +1,31 @@
-﻿namespace Ecommerce.Basket.Api.Data;
+using System.Text.Json;
+using StackExchange.Redis;
 
-public class BasketRepository(IDocumentSession session)
-    : IBasketRepository
+namespace Ecommerce.Basket.Api.Data;
+
+public interface IBasketRepository
 {
-    public async Task<ShoppingCart> GetBasket(string userName, CancellationToken cancellationToken = default)
+    Task<ShoppingCart> Get(Guid userId);
+    Task Save(ShoppingCart cart);
+    Task Delete(Guid userId);
+}
+
+// A basket is temporary data: one Redis key per user, expiry refreshed on every write.
+public class BasketRepository(IConnectionMultiplexer redis) : IBasketRepository
+{
+    private static readonly TimeSpan Ttl = TimeSpan.FromDays(30);
+    private readonly IDatabase _db = redis.GetDatabase();
+
+    private static string Key(Guid userId) => $"basket:{userId}";
+
+    public async Task<ShoppingCart> Get(Guid userId)
     {
-        var basket = await session.LoadAsync<ShoppingCart>(userName, cancellationToken);
-        
-        return basket is null ? throw new BasketNotFoundException(userName) : basket;
+        var json = await _db.StringGetAsync(Key(userId));
+        return json.IsNullOrEmpty ? new ShoppingCart(userId) : JsonSerializer.Deserialize<ShoppingCart>(json!)!;
     }
 
-    public async Task<ShoppingCart> StoreBasket(ShoppingCart basket, CancellationToken cancellationToken = default)
-    {
-        session.Store(basket);
-        await session.SaveChangesAsync(cancellationToken);
-        return basket;
-    }
+    public Task Save(ShoppingCart cart) =>
+        _db.StringSetAsync(Key(cart.UserId), JsonSerializer.Serialize(cart), Ttl);
 
-    public async Task<bool> DeleteBasket(string userName, CancellationToken cancellationToken = default)
-    {
-        session.Delete<ShoppingCart>(userName);
-        await session.SaveChangesAsync(cancellationToken);
-        return true;
-    }
+    public Task Delete(Guid userId) => _db.KeyDeleteAsync(Key(userId));
 }

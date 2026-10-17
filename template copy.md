@@ -13,7 +13,7 @@ What changed compared with the original template:
 | BFF per frontend | **No BFF**. The React app calls services through the gateway | One UI. Add an aggregation endpoint in the gateway only if a screen needs it |
 | single-spa micro-frontend + root config | **One React app** (Vite + TypeScript) | No import maps, no SystemJS, no root config |
 | webpack 5 | **Vite** | webpack was only needed for single-spa/SystemJS output |
-| nginx + self-signed certs | **YARP** gateway, **plain HTTP** locally | YARP also serves the built React files → one origin, no CORS |
+| nginx + self-signed certs | **YARP** gateway; **HTTPS only at the gateway** (dev cert), plain HTTP between services | YARP also serves the built React files → one origin, no CORS |
 | AWS SNS/SQS + LocalStack | **RabbitMQ** via **MassTransit 8** | Already in the repo. Adds the EF Core transactional outbox |
 | DynamoDB (codes with TTL) | **Redis** with key expiry | Redis is already in the stack |
 | Serilog | Built-in `Microsoft.Extensions.Logging` | One less dependency |
@@ -46,6 +46,7 @@ What changed compared with the original template:
 14. [Migrating the current repo, step by step](#14-migrating-the-current-repo-step-by-step)
 15. [Checklist](#15-checklist)
 16. [Things deliberately left out](#16-things-deliberately-left-out)
+17. [Removed from earlier drafts of this template](#17-removed-from-earlier-drafts-of-this-template)
 
 ---
 
@@ -247,6 +248,7 @@ builder.Services.AddSingleton(appSettings);
 builder.Services.AddSingleton(appSettings.Jwt);
 
 // 2. Cross-cutting
+builder.Logging.ClearProviders().AddJsonConsole();               // structured logs to stdout, no Serilog
 builder.Services.AddHttpLogging(_ => { });
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();   // Ecommerce.Shared
@@ -448,6 +450,7 @@ errors and doesn't leak stack traces:
 
 ```csharp
 public class ForbiddenException(string message) : Exception(message);
+public class ConflictException(string message) : Exception(message);       // e.g. duplicate checkout, duplicate email
 
 public class GlobalExceptionHandler(IProblemDetailsService problemDetails, ILogger<GlobalExceptionHandler> log)
     : IExceptionHandler
@@ -456,11 +459,13 @@ public class GlobalExceptionHandler(IProblemDetailsService problemDetails, ILogg
     {
         var status = ex switch
         {
-            NotFoundException         => 404,
-            BadRequestException       => 400,
+            NotFoundException           => 404,
+            BadRequestException         => 400,
+            ArgumentException           => 400,   // Ordering value objects (Address.Of, OrderName.Of…) — today these become 500
             UnauthorizedAccessException => 401,
-            ForbiddenException        => 403,
-            _                         => 500,
+            ForbiddenException          => 403,
+            ConflictException           => 409,
+            _                           => 500,
         };
 
         var errorId = Guid.NewGuid().ToString("N")[..8];
@@ -767,6 +772,13 @@ enough**. That's also the DynamoDB replacement from the original template (key-v
 
 Removed: Marten, Scrutor, `CachedBasketRepository`, the `basketdb` container and its volume.
 
+What `basketdb` was for in the course: Postgres was the **durable** copy of each basket and Redis
+only a cache in front of it, to teach the Proxy/Decorator and cache-aside patterns. The cost is a
+second Postgres container and two writes per change for data that is temporary anyway. Many shops
+(including Microsoft's eShop reference app) keep baskets in Redis only. The one thing to add is
+**a named volume for Redis** (11.6); without it a recreated Redis container loses every basket
+(`--appendonly yes` is an optional extra).
+
 ```csharp
 public class BasketRepository(IConnectionMultiplexer redis) : IBasketRepository
 {
@@ -794,6 +806,14 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(
 `ShoppingCart` is keyed by **`UserId` (Guid from the token)** instead of `UserName` from the URL.
 Routes become `GET /basket`, `POST /basket`, `DELETE /basket`, `POST /basket/checkout`, all for the
 current user.
+
+The same Redis can hold other short-lived data, the way DynamoDB did:
+
+| Data | Key | TTL | How |
+|---|---|---|---|
+| Basket | `basket:{userId}` | 30 days, refreshed on write | `StringSetAsync(key, json, ttl)` |
+| Catalog product cache (optional) | `catalog:product:{id}` | 5 min | `AddStackExchangeRedisCache` + `IDistributedCache` in `ProductReader`; `ProductUpdater` / `ProductDeleter` remove the key |
+| Short-lived codes (e.g. email verification) | `verify:{userId}` | 10 min | `StringSetAsync(key, code, TimeSpan.FromMinutes(10))` |
 
 ### 6.2 Prices: Catalog (Refit) + Discount (gRPC)
 
@@ -842,6 +862,11 @@ builder.Services.AddRefitClient<ICatalogClient>()
     .ConfigureHttpClient(c => c.BaseAddress = new Uri(builder.Configuration["CatalogSettings:Url"]!)) // http://ecommerce.catalog.api:8080
     .AddStandardResilienceHandler();
 ```
+
+Wrap the Refit interface in a small adapter (`CatalogService : ICatalogService`) that turns a Refit
+`ApiException` with status 404 into `NotFoundException("Product", id)`, so use cases never reference
+Refit. `GET /products/{id}` is anonymous, so Basket needs no service-to-service token. (If one is
+needed later, forward the user's `Authorization` header with a small `DelegatingHandler`.)
 
 > Coupons are matched by **product name** (`discount.proto` has `productName`). That's fine for the
 > course, but renaming a product in Catalog silently drops its discount. If that matters, add a
@@ -912,42 +937,137 @@ The four projects stay. What changes inside them:
 
 ### 7.1 Use case publishes the integration event through the outbox
 
+This matches `Services/Ordering/Ecommerce.Ordering.Application/Orders/OrderCreator.cs`:
+
 ```csharp
 public class OrderCreator(IApplicationDbContext db, IPublishEndpoint publisher,
-                          IFeatureManager features, IPaymentGateway payments) : IOrderCreator
+                          IFeatureManager features, IPaymentGateway payments,
+                          ILogger<OrderCreator> log) : IOrderCreator
 {
     public async Task<Guid> CreateFromCheckout(BasketCheckoutEvent e)
     {
+        // Idempotent: a redelivered checkout returns the order it already created (Orders.CheckoutId is unique).
+        var existing = await db.Orders.Where(o => o.CheckoutId == e.Id).Select(o => o.Id).FirstOrDefaultAsync();
+        if (existing is not null)
+        {
+            log.LogInformation("Checkout {CheckoutId} already created order {OrderId}", e.Id, existing.Value);
+            return existing.Value;
+        }
+
         await EnsureCustomer(e);                                   // see 7.2
 
+        var orderId = OrderId.Of(Guid.NewGuid());
         var address = Address.Of(e.FirstName, e.LastName, e.EmailAddress, e.AddressLine, e.Country, e.State, e.ZipCode);
-        var order = Order.Create(OrderId.Of(Guid.NewGuid()), CustomerId.Of(e.CustomerId),
-            OrderName.Of(e.UserName), address, address, (PaymentMethod)e.PaymentMethod);
+        var order = Order.Create(orderId, CustomerId.Of(e.CustomerId), OrderName.Of(OrderNumber(orderId)),
+            address, address, (PaymentMethod)e.PaymentMethod, checkoutId: e.Id);
 
-        foreach (var i in e.Items)
-            order.Add(ProductId.Of(i.ProductId), i.ProductName, i.Quantity, i.Price);
+        foreach (var item in e.Items)
+            order.Add(ProductId.Of(item.ProductId), item.ProductName, item.Quantity, item.Price);
 
-        if (order.PaymentMethod == PaymentMethod.FakeCard)         // see 7.4
+        if (order.Payment.Method == PaymentMethod.FakeCard)        // see 7.4
         {
-            var result = await payments.Charge(order.Id.Value, order.TotalPrice);
+            var result = await payments.Charge(orderId.Value, order.TotalPrice);
             if (result.Succeeded) order.MarkPaid(result.TransactionId!);
             else order.MarkPaymentFailed();
         }
 
         db.Orders.Add(order);
 
-        if (await features.IsEnabledAsync("OrderFullfilment"))
-            await publisher.Publish(order.ToOrderCreatedEvent());  // written to the outbox, not sent yet
+        // Catalog decrements stock on this event. A declined payment takes no stock.
+        if (order.Status != OrderStatus.PaymentFailed && await features.IsEnabledAsync("OrderFullfilment"))
+            await publisher.Publish(order.ToOrderCreatedEvent());  // written to the outbox, sent after commit
 
-        await db.SaveChangesAsync();                               // order + outbox row in one transaction
-        return order.Id.Value;
+        await db.SaveChangesAsync(CancellationToken.None);        // customer + order + outbox row in one transaction
+        return orderId.Value;
+    }
+
+    // ORD-20261017-3F9A1C: date + first 6 hex chars of the order id
+    private static string OrderNumber(OrderId id) =>
+        $"ORD-{DateTime.UtcNow:yyyyMMdd}-{id.Value.ToString("N")[..6].ToUpperInvariant()}";
+}
+```
+
+Notes on the choices in this code:
+
+- **Order number instead of the user name.** The course code used `OrderName = UserName`, so every
+  order of one customer had the same name. `ORD-yyyyMMdd-XXXXXX` is readable and sortable by day.
+  Six hex characters give ~16.7 million values per day, enough for the course, but `OrderName` has
+  no unique index, so a collision would not be detected. Add `HasIndex(o => o.OrderName).IsUnique()`
+  if order numbers are shown to customers. The seed orders still use `ORD_1`, `ORD_2`.
+- **No stock for declined payments.** `OrderCreatedEvent` is the only thing that takes stock, so a
+  `PaymentFailed` order never reserves it.
+- **The old bug this fixes:** the domain-event interceptor called `Publish` **inside
+  `SavingChanges`**, before the order was committed and without an outbox. If the insert failed,
+  the event was already out. With the outbox, the event is sent only after the commit.
+
+### 7.1.1 Domain events: removed for now — when to bring them back
+
+The domain events (`OrderCreatedEvent`, `OrderUpdatedEvent` as MediatR `INotification`s) went away
+with MediatR. Today that costs nothing: only **one** use case (`OrderCreator`) has a side effect, and
+the old `OrderUpdatedEvent` handler only logged.
+
+It stops being enough as soon as several status changes need side effects. With plain use cases,
+each one must remember to publish; with domain events, the aggregate records *what happened* and the
+side effects live in handlers. **Current gap:** `OrderUpdater.ChangeStatus(Cancelled)` publishes
+nothing, so a cancelled order's stock is never given back.
+
+| Situation | Choice |
+|---|---|
+| 1–2 side effects in total (today) | Publish from the use case, as above |
+| A cancel must restock (next step) | Add `OrderCancelledEvent` and publish it from `OrderUpdater` when the status becomes `Cancelled`; Catalog increments stock |
+| Many side effects per status (restock, email, refund, loyalty points…) | Bring domain events back **without MediatR**: `Order` keeps a list of events, an interceptor dispatches them to `IDomainEventHandler<T>` services from DI inside `SavingChanges`, and handlers publish integration events through `IPublishEndpoint`. Because the EF outbox is in place, those publishes are written in the same transaction, so dispatching before the commit is safe |
+
+```csharp
+// Domain
+public interface IDomainEvent;
+public record OrderCancelled(OrderId OrderId, IReadOnlyList<(ProductId, int)> Items) : IDomainEvent;
+
+// Application
+public interface IDomainEventHandler<in T> where T : IDomainEvent { Task Handle(T e, CancellationToken ct); }
+
+// Infrastructure: replaces DispatchDomainEventsInterceptor(IMediator)
+public class DispatchDomainEventsInterceptor(IServiceProvider sp) : SaveChangesInterceptor
+{
+    public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
+        DbContextEventData data, InterceptionResult<int> result, CancellationToken ct = default)
+    {
+        var aggregates = data.Context!.ChangeTracker.Entries<IAggregate>()
+            .Select(e => e.Entity).Where(a => a.DomainEvents.Any()).ToList();
+        var events = aggregates.SelectMany(a => a.ClearDomainEvents()).ToList();
+
+        foreach (var e in events)
+        {
+            var handlerType = typeof(IDomainEventHandler<>).MakeGenericType(e.GetType());
+            foreach (dynamic handler in sp.GetServices(handlerType))
+                await handler.Handle((dynamic)e, ct);
+        }
+        return await base.SavingChangesAsync(data, result, ct);
     }
 }
 ```
 
-Why this matters: today the domain-event interceptor calls `Publish` **inside `SavingChanges`**,
-before the order is committed. If the insert fails, the event is already out. With the outbox, the
-event is sent only after the commit.
+**Implemented** (`Order.StockTaken`, `Order.MarkStockTaken()`, `bool Order.Cancel()`,
+`OrderUpdater` publishes `OrderCancelledEvent`, Catalog `OrderCancelledEventConsumer`, migration
+`OrderStockTaken` with a backfill for existing checkout orders). Verified end to end: a cancelled
+cash-on-delivery or `Paid` order gives its stock back; a cancelled `PaymentFailed` order changes
+nothing; a second cancel returns 409. Refunds are **not** implemented.
+
+**Recommendation for the course:** keep the use-case approach with `OrderCancelledEvent`, and mind
+the three traps found in `Order.Cancel()` (it allows `Pending`, `Paid` and `PaymentFailed`):
+
+1. **Only give back stock that was taken.** A `PaymentFailed` order never took stock, and neither
+   did any order created while `OrderFullfilment` was off. Record it on the aggregate
+   (`StockTaken = true` when `OrderCreatedEvent` is published) and publish `OrderCancelledEvent` only
+   when it's true.
+2. **A cancelled `Paid` order needs a refund** (`IPaymentGateway.Refund`). That makes *two* side
+   effects for one transition.
+3. **The restock consumer must be idempotent**, like the stock-decrement one (MassTransit retries;
+   use the event `Id`).
+
+A better trigger than "a third status": move to domain events when **one transition needs two or
+more side effects, or the same side effect is started from two use cases**. Cancel with restock +
+refund already meets the first condition, so if you implement refunds, implement cancel with domain
+events straight away. If cancel only restocks, publishing from `OrderUpdater` is enough.
 
 ### 7.2 Fix the foreign keys to `Customers` and `Products`
 
@@ -1059,12 +1179,36 @@ public record BasketCheckoutItem(Guid ProductId, string ProductName, decimal Pri
 
 public record OrderCreatedEvent(Guid OrderId, Guid CustomerId, List<OrderCreatedItem> Items) : IntegrationEvent;
 public record OrderCreatedItem(Guid ProductId, int Quantity);
+
+public record ProductPriceChangedEvent(Guid ProductId, decimal NewPrice) : IntegrationEvent;   // optional
 ```
 
 | Event | Publisher | Consumer | What the consumer does |
 |---|---|---|---|
 | `BasketCheckoutEvent` | Basket (direct) | Ordering | Upserts customer, creates order |
-| `OrderCreatedEvent` | Ordering (outbox, behind `OrderFullfilment` flag) | Catalog | Decrements `Stock` |
+| `OrderCreatedEvent` | Ordering (outbox, behind `OrderFullfilment` flag; **not** sent for `PaymentFailed` orders) | Catalog | Decrements `Stock` |
+| `OrderCancelledEvent` | Ordering (outbox, from `OrderUpdater` on `Cancelled`, **only if `StockTaken`**) | Catalog | Gives the stock back (`ProductUpdater.IncrementStock`, 7.1.1) |
+| `ProductPriceChangedEvent` (optional) | Catalog (outbox, from `ProductUpdater` when the price changes) | Basket | Updates `UnitPrice` in stored baskets, so `GET /basket` shows the new price before the next store |
+
+Basket already recomputes prices on every store (6.2), so `ProductPriceChangedEvent` is only needed if
+you want baskets that are just being viewed to reflect a price change. It's a good second
+event-driven example for the course. Basket can't scan Redis by product cheaply, so keep a small set
+`product-baskets:{productId}` → user ids, updated on every store.
+
+Events are records that only ever get **new optional fields**; never rename or remove a field once
+it has been published.
+
+**Stock limits to know about** (acceptable for the course):
+
+- Basket checks `product.Stock < quantity` only when the basket is stored, and stock is taken only
+  when the order is created. Two shoppers can both pass the check, so stock can be oversold.
+- Catalog's `DecrementStock` uses `Math.Max(0, stock - quantity)`, which hides an oversell instead
+  of reporting it. Log a warning when the clamp kicks in.
+- Stock is only touched while the `OrderFullfilment` flag is on (it is, in compose and
+  `appsettings.json`). The flag name doesn't say that; rename it to something like `StockFromOrders`
+  if you keep it.
+- A real shop reserves stock at checkout and releases it on payment failure or cancel. That needs a
+  reservation table in Catalog plus the cancel event above.
 
 Today the integration event published by Ordering is `OrderDto` itself. Use a dedicated
 `OrderCreatedEvent` record so the API DTO and the message contract can change independently.
@@ -1185,7 +1329,11 @@ Notes:
 - YARP routes are matched before the fallback, so `/catalog-service/...` never returns
   `index.html`. Just never start a React route with `*-service`.
 - `appsettings.Local.json` (already in the gateway) holds the `localhost:600x` addresses for IDE runs.
-- YARP forwards `Authorization` as-is. Services validate the JWT themselves.
+- YARP forwards `Authorization` as-is. Services validate the JWT themselves. You *can* also
+  validate at the gateway (`AddJwtAuth` + `"AuthorizationPolicy": "default"` on a route) to reject
+  bad tokens early, but it isn't required.
+- A screen that needs data from several services in one call can get a small aggregation
+  controller in the gateway (the BFF role from the original design), only where it's needed.
 - The current `ASPNETCORE_ENVIRONMENT=Development` in compose makes every service run migrations,
   seeding and Swagger — that's intended locally.
 
@@ -1356,14 +1504,23 @@ Scripts: `dev` (`vite`), `build` (`tsc -b && vite build`), `preview`. No lint, t
 
 ## 11. Docker
 
-### 11.1 Drop HTTPS from the services
+### 11.1 HTTP between services, HTTPS only at the gateway
 
-Today every service publishes `8081` with `ASPNETCORE_HTTPS_PORTS` and mounts
-`${APPDATA}/ASP.NET/Https` + `${APPDATA}/Microsoft/UserSecrets`. With plain HTTP behind YARP:
+The course code gave every service its own HTTPS port (`8081`, `ASPNETCORE_HTTPS_PORTS`) and mounted
+`${APPDATA}/ASP.NET/Https` + `${APPDATA}/Microsoft/UserSecrets`. That only works on Windows with
+Visual Studio, and Basket called Discount over HTTPS with
+`DangerousAcceptAnyServerCertificateValidator`, i.e. without checking the certificate at all.
 
-- remove `ASPNETCORE_HTTPS_PORTS=8081`, the `606x:8081` ports and both `${APPDATA}` volumes;
-- remove `app.UseHttpsRedirection()` if present;
-- Discount stays HTTP/2-only on 8080 (h2c).
+The setup now is the usual one for a gateway: **TLS ends at the gateway** (11.5), and traffic
+inside the Docker network is plain HTTP.
+
+- removed `ASPNETCORE_HTTPS_PORTS=8081`, the `606x:8081` ports and both `${APPDATA}` volumes;
+- removed `app.UseHttpsRedirection()` from the services;
+- Discount stays HTTP/2-only on 8080 (h2c), and Basket calls it with `http://`.
+
+Service ports 6000–6003 and 6005 are still published to the host for Swagger and Postman. They
+bypass the gateway (and its rate limit); remove the `ports:` entries of the services if you want the
+gateway to be the only entry point.
 
 The existing per-service Dockerfiles stay as they are. Add `COPY` lines for the new projects they
 reference (`Ecommerce.Shared`, `Ecommerce.Shared.Messaging`).
@@ -1400,9 +1557,17 @@ services:
     container_name: catalogdb
     environment: [ POSTGRES_USER=postgres, POSTGRES_PASSWORD=postgres, POSTGRES_DB=CatalogDb ]
     ports: [ "5432:5432" ]
-    volumes: [ "postgres_catalog:/var/lib/postgresql/data/" ]
+    volumes: [ "postgres_catalog:/var/lib/postgresql" ]   # Postgres 18+: mount the parent folder (11.4)
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U postgres"], interval: 5s, timeout: 5s, retries: 20 }
 
-  # basketdb: removed (Basket is Redis-only)
+  distributedcache:                # Redis: baskets
+    container_name: distributedcache
+    command: ["redis-server", "--appendonly", "yes"]       # optional, see 11.6
+    volumes: [ "redis_data:/data" ]
+    ports: [ "6379:6379" ]
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 5s, timeout: 5s, retries: 20 }
+
+  # basketdb: removed (Basket is Redis-only, 6.1)
 
   ecommerce.identity.api:          # NEW
     environment:
@@ -1467,9 +1632,179 @@ services:
     ports: [ "6004:8080" ]
 ```
 
-`docker-compose.yml` gets an `ecommerce.identity.api` build entry and loses `basketdb` and the
-`postgres_basket` volume. `src/.env` (git-ignored) holds
-`JWT_SIGNING_KEY=local-dev-only-signing-key-change-me-0123456789`; compose reads it automatically.
+The snippet above is shortened. The real override also has, for every app service:
+
+- `depends_on` with `condition: service_healthy` on Postgres, Redis and RabbitMQ (SQL Server has no
+  health check, so Ordering uses `service_started`);
+- `restart: on-failure`, so a service that started before its database simply retries (they run
+  migrations on startup in Development);
+- `Jwt__SigningKey=${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in src/.env (see .env.example)}`, so compose
+  stops with a clear message when the key is missing.
+
+`src/.env` is git-ignored; `src/.env.example` is committed with a dev-only value to copy.
+
+### 11.4 `docker-compose.yml`: project name and image versions
+
+```yaml
+name: ecommerce
+
+services:
+  catalogdb:        { image: postgres:18 }
+  distributedcache: { image: redis:8 }
+  orderdb:          { image: mcr.microsoft.com/mssql/server:2025-latest }
+  messagebroker:    { image: rabbitmq:4.3-management }
+  # ... app services with build entries ...
+
+volumes:
+  postgres_catalog:
+  redis_data:
+```
+
+**Project name.** Without `name:`, compose uses the folder name, `src`, which is also the folder of
+the course repo `run-aspnetcore-microservices/src`. Both projects then share the volume
+`src_postgres_catalog`, so this repo would start on the course repo's database. With
+`name: ecommerce` the volume is `ecommerce_postgres_catalog`. The old `src_postgres_catalog` volume
+is left as it is; delete it yourself (`docker volume rm src_postgres_catalog`) once you no longer
+need the course repo's data.
+
+The project name does **not** avoid every clash: `container_name` values (`catalogdb`, `orderdb`,
+`distributedcache`, `messagebroker`) and host ports (5432, 6379, 1433, 5672, 15672, 6000–6004) are the
+same as the course repo. Stop one stack before starting the other.
+
+> **Visual Studio uses its own project name.** VS runs compose with `-p dockercompose<hash>`, and
+> `-p` takes precedence over `name:` in the file. So F5 in Visual Studio creates a *different*
+> project (and different volumes, e.g. `dockercompose123_postgres_catalog`) than `docker compose up`
+> from the terminal. To make both use `ecommerce`, set it in `docker-compose.dcproj`:
+>
+> ```xml
+> <PropertyGroup Label="Globals">
+>   ...
+>   <DockerComposeProjectName>ecommerce</DockerComposeProjectName>
+> </PropertyGroup>
+> ```
+>
+> `docker-compose.dcproj` now sets it. VS Code and the CLI read `name:` directly.
+
+**Pinned images.** The course used untagged images (`postgres`, `redis`, `rabbitmq:management`),
+which silently move to new major versions:
+
+| Image | Pin | Why |
+|---|---|---|
+| `postgres:18` | Major version | Untagged `postgres` became 18, which keeps its data in `/var/lib/postgresql/18/docker` and **refuses to start** when a volume is mounted at the old `/var/lib/postgresql/data`. Mount `/var/lib/postgresql` instead. A volume created by Postgres 16/17 can't be opened by 18 without `pg_upgrade`, so the simplest local fix is a new volume |
+| `redis:8` | Major version | Avoids surprise upgrades |
+| `mcr.microsoft.com/mssql/server:2025-latest` | Release line | Still follows 2025 cumulative updates; use a full tag such as `2025-CU1-ubuntu-22.04` for a fully fixed version |
+| `rabbitmq:4.3-management` (was `3.13-management`) | Minor version | See below. Verified on 4.3.6: no deprecated features in use, checkout + cancel flows work |
+
+**Why not stay on RabbitMQ 3.13.** The pin was a precaution, not a requirement. Checked on the running
+stack (MassTransit 8.1.3, RabbitMQ.Client 6.8.1, RabbitMQ 3.13.7):
+
+- `rabbitmqctl list_queues` shows only `basket-checkout-event` and `order-created-event`, both
+  **durable, non-auto-delete, non-exclusive**. No transient queues.
+- `rabbitmq-diagnostics check_if_any_deprecated_features_are_used` → *"no deprecated features in use"*.
+- The code has no `IRequestClient` / request-response, so MassTransit never creates its temporary
+  (non-durable, auto-delete) bus queue — the only MassTransit queue type touched by RabbitMQ 4's
+  removal of *transient non-exclusive queues*.
+- 3.13 left community support on **30 Sep 2024**; 4.3 is supported until 31 Jan 2027.
+- `messagebroker` has no named volume (only the image's anonymous one), so a version change loses
+  nothing that MassTransit doesn't recreate on start.
+
+So `rabbitmq:4.3-management` is the better pin. After switching, run
+`docker exec messagebroker rabbitmq-diagnostics check_if_any_deprecated_features_are_used` and do one
+checkout. **Re-check if you add request/response** (`IRequestClient<T>`): on RabbitMQ 4 its
+temporary reply queue must be exclusive or have a queue TTL; test it, and consider moving to the
+latest MassTransit 8.x (same version for `MassTransit.RabbitMQ` and `MassTransit.EntityFrameworkCore`).
+
+### 11.5 HTTPS at the gateway
+
+Only the gateway listens on HTTPS. It uses the ASP.NET Core dev certificate, exported into the repo
+folder (git-ignored) so it works the same on Windows, macOS and Linux:
+
+```bash
+# once per machine, from src/
+dotnet dev-certs https --trust                                         # trust the dev cert on this machine
+dotnet dev-certs https -ep ./certs/gateway.pfx -p "$GATEWAY_CERT_PASSWORD"
+```
+
+```dotenv
+# src/.env
+GATEWAY_CERT_PASSWORD=local-dev-cert-password
+```
+
+```yaml
+  ecommerce.yarpapigateway:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORTS=8443
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/gateway.pfx
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=${GATEWAY_CERT_PASSWORD:?Set GATEWAY_CERT_PASSWORD in src/.env}
+    volumes:
+      - ./certs:/https:ro
+    ports:
+      - "6004:8080"     # HTTP, kept for Postman and existing links
+      - "6443:8443"     # HTTPS: https://localhost:6443
+```
+
+No code change is needed for this; Kestrel picks the certificate from the env vars. Optional:
+redirect HTTP to HTTPS. Inside the container the HTTPS port is 8443, but the browser must be sent to
+the **host** port 6443, so set it explicitly:
+
+```csharp
+// Gateway Program.cs (optional)
+builder.Services.AddHttpsRedirection(o => o.HttpsPort = 6443);
+// ...
+app.UseHttpsRedirection();
+```
+
+Leave the redirect off if Postman collections or the Vite proxy still use `http://localhost:6004`.
+
+Add `certs/` to `.gitignore`. The JWT now travels over TLS between the browser and the gateway;
+inside the Docker network it stays plain HTTP, which is normal for a single host.
+
+If you run the Vite dev server against the HTTPS port, set the proxy target to
+`https://localhost:6443` with `secure: false` (Node doesn't read the OS certificate store).
+
+### 11.6 Volumes: every stateful container has a named volume
+
+Before this change (checked with `docker inspect`), two containers kept their data only in the container layer:
+
+| Container | What it stores | Mount today | What survives |
+|---|---|---|---|
+| `catalogdb` | CatalogDb, IdentityDb | named volume `ecommerce_postgres_catalog` | everything |
+| `distributedcache` | baskets | **none** (`redis:8` declares no `VOLUME`) | `restart`/`stop`+`start` only. `down`, `up --force-recreate`, an image or config change → **all baskets lost** |
+| `orderdb` | OrderDb | **none** (the SQL Server image declares no `VOLUME`) | same as Redis → **all orders, customers and outbox rows lost** |
+| `messagebroker` | queued messages | anonymous volume from the image | kept when compose recreates the container, lost after `down` |
+
+Now all three have named volumes (below). Verified: orders and Redis keys survive `docker compose down` + `up`.
+The existing SQL Server data was copied into `ecommerce_mssql_data` when the volume was introduced.
+
+Redis *does* write to disk by default (RDB snapshots, `save 3600 1 300 100 60 10000`, file
+`/data/dump.rdb`), but `/data` lives in the container's own layer and disappears with the container.
+
+Add named volumes:
+
+```yaml
+  distributedcache:
+    command: ["redis-server", "--appendonly", "yes"]   # optional: lose ≤1 s instead of up to 60 s–1 h on a crash
+    volumes: [ "redis_data:/data" ]
+
+  orderdb:
+    volumes: [ "mssql_data:/var/opt/mssql" ]
+
+  messagebroker:
+    volumes: [ "rabbitmq_data:/var/lib/rabbitmq" ]     # works because hostname is fixed (ecommerce-mq)
+
+volumes:
+  postgres_catalog:
+  redis_data:
+  mssql_data:
+  rabbitmq_data:
+```
+
+The **volume** is what's required; `--appendonly yes` only shortens how much is lost on a crash
+(RDB alone already saves on a clean shutdown). Baskets expire after 30 days, so the data stays small.
+
+`docker compose down -v` still wipes everything, which is the intended way to reset the stack.
 
 ---
 
@@ -1480,14 +1815,18 @@ services:
 | **Environments** | `appsettings.json` = localhost values (IDE). Compose overrides with env vars (`__`) |
 | **Secrets** | Only the JWT key, in `src/.env` (git-ignored). Local DB passwords are fake |
 | **Ids** | `Guid`, generated in the app. User id = token `sub` |
+| **Timestamps** | Always `DateTime.UtcNow` (today `IntegrationEvent` uses `DateTime.Now`); name them `*Utc` / `*OnUtc` |
 | **Money** | `decimal`, precision (18,2). Order lines snapshot name + price |
+| **Order numbers** | `ORD-yyyyMMdd-XXXXXX` (UTC date + first 6 hex chars of the order id), set by `OrderCreator` |
+| **Images** | Always tagged with at least a major version (11.4); never untagged |
 | **Errors** | RFC 7807 `ProblemDetails` + `errorId`; validation → `ValidationProblemDetails` |
 | **Collections** | `PaginatedResult<T> { pageIndex, pageSize, count, data }` (existing shared type) |
 | **Auth** | JWT bearer, fallback policy = authenticated; `[AllowAnonymous]` only on public reads, auth, `/health` |
 | **User identity** | Always from `ICurrentUser`, never from the URL or body |
 | **Events** | Records in `Ecommerce.Shared.Messaging` with a stable `Id`; outbox where a DB exists; consumers idempotent |
 | **Mapping** | Hand-written `ToDto()` / `ToEntity()`; no Mapster/AutoMapper |
-| **Logging** | Built-in logging + `UseHttpLogging`. No passwords, tokens or card data in logs |
+| **Logging** | Built-in JSON console logging + `UseHttpLogging`. No passwords, tokens or card data in logs |
+| **Feature flags** | `Microsoft.FeatureManagement`, section `FeatureManagement`; flag off → endpoint returns 404 / UI hides it / event not published |
 | **API routes** | Gateway: `/{service}-service/...`. Inside a service: `/{resources}`, `/{resources}/{id}` |
 | **Docs** | `README.md` (run, admin login, ports), Postman collection updated with a login request + `{{token}}` |
 
@@ -1498,6 +1837,7 @@ services:
 | Component | Host port | URL |
 |---|---|---|
 | **Gateway (React + API)** | 6004 | `http://localhost:6004` |
+| **Gateway, HTTPS** (11.5, once set up) | 6443 | `https://localhost:6443` |
 | Vite dev server | 5173 | `http://localhost:5173` (proxies `/*-service` → 6004) |
 | Catalog API | 6000 | `http://localhost:6000/swagger` |
 | Basket API | 6001 | `http://localhost:6001/swagger` |
@@ -1541,6 +1881,14 @@ Do it one service at a time; keep `docker compose up` working after each step.
      `GlobalExceptionHandler`.
    - Extend `AddMessageBroker` with the outbox callback; add `MassTransit.EntityFrameworkCore` 8.x.
 2. **Identity** (new): scaffold, migrations, seed, add to sln + compose + gateway route.
+   ```bash
+   # from src/
+   dotnet new webapi -n Ecommerce.Identity.Api -o Services/Identity/Ecommerce.Identity.Api \
+     --use-controllers --framework net8.0
+   dotnet sln add Services/Identity/Ecommerce.Identity.Api --solution-folder Services/Identity
+   dotnet add Services/Identity/Ecommerce.Identity.Api reference Shared/Ecommerce.Shared
+   ```
+   Copy the `Dockerfile` shape from Catalog (its `COPY` lines need only `Ecommerce.Shared`).
 3. **Catalog**: Marten → EF Core (`CatalogDbContext`, migration, seed from `CatalogInitialData`);
    handlers → use-case classes; Carter → controllers; `.Adapt` → `ProductMapper`; add JWT + admin
    policy; add `Stock` + `OrderCreatedEventConsumer`; outbox.
@@ -1557,8 +1905,11 @@ Do it one service at a time; keep `docker compose up` working after each step.
    migration.
 7. **Gateway**: static files + SPA fallback + `identity-service` route; raise the ordering rate limit
    (5 requests / 10 s is too low once a UI calls it); new Dockerfile with the Node stage.
-8. **Compose**: remove HTTPS bits and `basketdb`; add Identity, `JWT_SIGNING_KEY`, `CatalogSettings__Url`,
-   `FeatureManagement__OrderFullfilment=true`.
+8. **Compose**: remove the per-service HTTPS bits and `basketdb`; add Identity, `JWT_SIGNING_KEY`,
+   `CatalogSettings__Url`, `FeatureManagement__OrderFullfilment=true`; `name: ecommerce`, pinned
+   images, Postgres 18 volume path, health checks + `restart: on-failure`, `DockerComposeProjectName`
+   in the `.dcproj`, RabbitMQ 4.3 (11.3–11.4), named volumes for Redis (AOF on), SQL Server and
+   RabbitMQ (11.6). Still to do: HTTPS at the gateway (11.5).
 9. **Web**: `yarn create vite ecommerce-web --template react-ts`, then
    `yarn add react-router-dom @tanstack/react-query jwt-decode`.
 10. **Postman**: add a login request that stores `{{token}}`; update basket routes (no `userName` in
@@ -1572,10 +1923,10 @@ Fix these while you're in each file:
 |---|---|---|
 | Catalog `GET /products` | 1-based `pageNumber`, returns a bare list; Ordering uses 0-based `PageIndex` + `PaginatedResult` | Use `PaginationRequest` + `PaginatedResult<T>` everywhere |
 | Catalog `PUT /products` | Id in the body, not the URL; `DELETE` doesn't check the product exists | `PUT /products/{id}`; deleter throws `ProductNotFoundException` |
-| Ordering `GET /orders/{orderName}` | Clashes with `/orders/{id}`-style routes | `GET /orders?name=...` |
+| Ordering `GET /orders/{orderName}` | No clash today (only `DELETE` uses `/orders/{id}`), but adding `GET /orders/{id}` later would be ambiguous | `GET /orders?name=...` |
 | Ordering `GET /orders/customer/{customerId}` | Any caller can read any customer's orders | `GET /orders/mine` using `ICurrentUser`; keep the old one for `Admin` |
 | Ordering `AuditableEntityInterceptor` | `CreatedBy = "mehmet"` hard-coded | `ICurrentUser.Email`, or `"system"` inside consumers |
-| Ordering `OrderConfiguration` | `ZipCode` max length 5; DB default status `Draft` while the domain defaults to `Pending` | Length 10; default `Pending` |
+| Ordering `OrderConfiguration` | `ZipCode` max length 5 (a longer code fails the insert → 500); DB default status `Draft` while the domain always sets `Pending` (harmless today, misleading) | Length 10; default `Pending` |
 | Ordering `InitialiseDatabaseAsync` | `MigrateAsync().GetAwaiter().GetResult()` inside an async method | `await context.Database.MigrateAsync()` |
 | Basket Carter routes | Copy-pasted names (`GetProductById`, `CreateProduct`, `DeleteProduct`) | Disappear with controllers |
 
@@ -1636,7 +1987,13 @@ dotnet remove Services/Basket/Ecommerce.Basket.Api package AspNetCore.HealthChec
 
 - [ ] YARP: `identity-service` route, static files, SPA fallback, rate limit on ordering
 - [ ] Vite React TS: proxy, `AuthProvider`, `RequireRole`, `http()`, TanStack Query, pages
-- [ ] Compose: no HTTPS ports/volumes, no `basketdb`, Identity added, `.env` with the JWT key
+- [ ] Compose: no per-service HTTPS, no `basketdb`, Identity added, `.env` with the JWT key
+- [ ] Compose: `name: ecommerce`, pinned images, Postgres 18 mount at `/var/lib/postgresql`
+- [ ] HTTPS at the gateway only (`certs/gateway.pfx`, port 6443)
+- [x] Named volumes `redis_data`, `mssql_data`, `rabbitmq_data` (11.6); Redis AOF on
+- [x] `<DockerComposeProjectName>ecommerce</DockerComposeProjectName>` in `docker-compose.dcproj`
+- [x] RabbitMQ `4.3-management` + deprecated-features check
+- [x] `OrderCancelledEvent` → Catalog restocks, only when the order took stock (7.1.1)
 - [ ] Postman collection: login + `{{token}}`
 
 ---
@@ -1656,4 +2013,32 @@ dotnet remove Services/Basket/Ecommerce.Basket.Api package AspNetCore.HealthChec
 | Refresh tokens / external IdP | Real users, longer sessions | Keycloak or OpenIddict; services keep validating JWT (RS256 + `Authority`) |
 | Serilog / OpenTelemetry | You need log search or tracing across services | Serilog + Seq; OpenTelemetry + Jaeger |
 | Tests, lint | The project moves beyond the course | xUnit + Testcontainers; ESLint + Prettier |
-| HTTPS locally | Testing secure cookies or HSTS | `dotnet dev-certs https` on the gateway only; services stay on HTTP behind it |
+| HTTPS between services | Services run on different hosts or a shared network | Per-service certificates or a service mesh; until then TLS ends at the gateway (11.5) |
+
+---
+
+## 17. Removed from earlier drafts of this template
+
+The first draft of this template targeted a fresh .NET 10 build. After deciding to **keep the current
+repo** (.NET 8, SQL Server for Ordering, Discount gRPC, `/{service}-service/` routes) and only remove
+MediatR, Mapster and Marten, these parts were dropped on purpose. They're listed here so nothing
+disappears silently; bring one back if the decision changes.
+
+| Removed | Was | Why it was dropped | Bring it back when… |
+|---|---|---|---|
+| .NET 10 target | `net10.0`, `sdk:10.0` images | Repo is on .NET 8 | Upgrading (see section 16) |
+| `/api/{service}/` routes, gateway on port 5000 | Single `/api/` prefix, cleaner SPA fallback | Keep the current `/{service}-service/` routes and port 6004 so Postman keeps working | You're willing to update the Postman collection and the Web app's proxy |
+| One Postgres for every service, `initdb/01-create-databases.sql` | `identitydb`, `catalogdb`, `orderingdb` in one container, created by an init script | Ordering stays on SQL Server; `MigrateAsync()` creates `IdentityDb` itself, so no init script is needed | Moving Ordering to Postgres |
+| Typed `AppSettings` sections (`DatabaseSettings`, `RedisSettings`, `RabbitMqSettings`) + `appsettings.Docker.json` | Every setting bound and validated on start | The repo uses `ConnectionStrings:*`, `MessageBroker:*`, `GrpcSettings:*` + env vars in compose; only `Jwt` became a typed section | Settings grow and you want start-up validation for all of them |
+| `Category` entity + `CategoryId` | Relational category table | Repo models `Category` as `List<string>`; EF Core 8 maps it to `text[]` | Categories need their own data (name, image, parent) |
+| `AppException` + `ErrorCode` enum (with 422 `Unprocessable`) | One exception type for all expected errors | The repo already has `NotFoundException` / `BadRequestException`; added `ForbiddenException` / `ConflictException` instead | You want one error-code catalogue |
+| Generic per-service Dockerfile | Restore-friendly multi-stage file for every service | The VS-generated Dockerfiles already work; only add the new `COPY` lines | You stop using Visual Studio's container tooling |
+| `x-service-env` YAML anchor in compose | Shared env block | The repo splits `docker-compose.yml` / `.override.yml` for VS; anchors don't cross files | Compose is flattened into one file |
+| Scaffolding every project from scratch | `dotnet new` for all services | Projects exist; section 14 lists migration steps (Identity scaffold kept) | Starting a new repo from this template |
+| `VITE_API_BASE` env var in the Web app | One base URL (`/api`) for all calls | With `/{service}-service/` there are four prefixes; the Vite proxy lists them | Going back to a single `/api/` prefix |
+| "Discount gRPC" row in section 16 | Discount as optional | Discount is kept on purpose: it's the project's gRPC example | — |
+| `CheckoutId` on the checkout event | Separate idempotency key | Replaced by the stable `IntegrationEvent.Id` (store it as `Orders.CheckoutId`, unique) | — |
+| `basketdb` (Postgres + Marten) as the durable basket store, Redis as cache | Cache-aside / Decorator example with Scrutor | Baskets are temporary; Redis with a named volume is enough (6.1, 11.6) | The course needs the Decorator/cache-aside example again |
+| Domain events via MediatR | `INotification` + `DispatchDomainEventsInterceptor` | MediatR removed; only one side effect existed; old dispatch published before the commit (7.1.1) | A third order status gets side effects — reintroduce with `IDomainEventHandler<T>` (7.1.1) |
+| `OrderName = UserName` | Customer name as the order name | Every order of a customer looked the same; replaced by `ORD-yyyyMMdd-XXXXXX` | — |
+| Untagged images, default compose project `src` | `postgres`, `redis`, `rabbitmq:management` | Postgres 18 broke the old volume path; project `src` shared volumes with the course repo (11.4) | — |

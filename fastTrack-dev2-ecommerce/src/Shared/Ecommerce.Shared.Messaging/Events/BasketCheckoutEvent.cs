@@ -1,23 +1,23 @@
-﻿namespace Ecommerce.Shared.Messaging.Events;
+namespace Ecommerce.Shared.Messaging.Events;
+
 public record BasketCheckoutEvent : IntegrationEvent
 {
-    public string UserName { get; set; } = default!;
-    public Guid CustomerId { get; set; } = default!;
-    public decimal TotalPrice { get; set; } = default!;
+    public Guid CustomerId { get; init; }
+    public string UserName { get; init; } = default!;
+    public decimal TotalPrice { get; init; }
+    public List<BasketCheckoutItem> Items { get; init; } = [];
 
-    // Shipping and BillingAddress
-    public string FirstName { get; set; } = default!;
-    public string LastName { get; set; } = default!;
-    public string EmailAddress { get; set; } = default!;
-    public string AddressLine { get; set; } = default!;
-    public string Country { get; set; } = default!;
-    public string State { get; set; } = default!;
-    public string ZipCode { get; set; } = default!;
+    // Shipping and billing address
+    public string FirstName { get; init; } = default!;
+    public string LastName { get; init; } = default!;
+    public string EmailAddress { get; init; } = default!;
+    public string AddressLine { get; init; } = default!;
+    public string Country { get; init; } = default!;
+    public string State { get; init; } = default!;
+    public string ZipCode { get; init; } = default!;
 
-    // Payment
-    public string CardName { get; set; } = default!;
-    public string CardNumber { get; set; } = default!;
-    public string Expiration { get; set; } = default!;
-    public string CVV { get; set; } = default!;
-    public int PaymentMethod { get; set; } = default!;
+    // Payment: method only, never card data. 1 = CashOnDelivery, 2 = FakeCard
+    public int PaymentMethod { get; init; }
 }
+
+public record BasketCheckoutItem(Guid ProductId, string ProductName, decimal Price, int Quantity);

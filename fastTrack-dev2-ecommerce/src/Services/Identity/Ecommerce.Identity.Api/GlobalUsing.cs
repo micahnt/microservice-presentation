@@ -1,0 +1,10 @@
+global using Ecommerce.Identity.Api.ApplicationLogic;
+global using Ecommerce.Identity.Api.Data;
+global using Ecommerce.Identity.Api.Presentation.Models;
+global using Ecommerce.Shared.Auth;
+global using Ecommerce.Shared.Exceptions;
+global using FluentValidation;
+global using Microsoft.AspNetCore.Authorization;
+global using Microsoft.AspNetCore.Identity;
+global using Microsoft.AspNetCore.Mvc;
+global using Microsoft.EntityFrameworkCore;

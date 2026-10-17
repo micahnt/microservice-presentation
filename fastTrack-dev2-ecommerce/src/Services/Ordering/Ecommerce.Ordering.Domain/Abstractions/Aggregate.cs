@@ -1,21 +1,15 @@
-﻿
 namespace Ecommerce.Ordering.Domain.Abstractions;
+
+// Marks the root of a consistency boundary. Domain events were removed together with MediatR;
+// integration events are published by the use cases through the MassTransit outbox instead.
 public abstract class Aggregate<TId> : Entity<TId>, IAggregate<TId>
 {
-    private readonly List<IDomainEvent> _domainEvents = new();
-    public IReadOnlyList<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
+}
 
-    public void AddDomainEvent(IDomainEvent domainEvent)
-    {
-        _domainEvents.Add(domainEvent);
-    }
+public interface IAggregate<T> : IAggregate, IEntity<T>
+{
+}
 
-    public IDomainEvent[] ClearDomainEvents()
-    {
-        IDomainEvent[] dequeuedEvents = _domainEvents.ToArray();
-
-        _domainEvents.Clear();
-
-        return dequeuedEvents;
-    }
+public interface IAggregate : IEntity
+{
 }

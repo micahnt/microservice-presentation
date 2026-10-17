@@ -1,32 +1,26 @@
-﻿namespace Ecommerce.Ordering.Domain.ValueObjects;
+namespace Ecommerce.Ordering.Domain.ValueObjects;
+
+// Payment method + the gateway's transaction id. No card data is ever stored.
 public record Payment
 {
-    public string? CardName { get; } = default!;
-    public string CardNumber { get; } = default!;
-    public string Expiration { get; } = default!;
-    public string CVV { get; } = default!;
-    public int PaymentMethod { get; } = default!;
+    public PaymentMethod Method { get; } = default!;
+    public string? TransactionId { get; }
 
     protected Payment()
     {
     }
 
-    private Payment(string cardName, string cardNumber, string expiration, string cvv, int paymentMethod)
+    private Payment(PaymentMethod method, string? transactionId)
     {
-        CardName = cardName;
-        CardNumber = cardNumber;
-        Expiration = expiration;
-        CVV = cvv;
-        PaymentMethod = paymentMethod;
+        Method = method;
+        TransactionId = transactionId;
     }
 
-    public static Payment Of(string cardName, string cardNumber, string expiration, string cvv, int paymentMethod)
+    public static Payment Of(PaymentMethod method, string? transactionId = null)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(cardName);
-        ArgumentException.ThrowIfNullOrWhiteSpace(cardNumber);
-        ArgumentException.ThrowIfNullOrWhiteSpace(cvv);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(cvv.Length, 3);
+        if (!Enum.IsDefined(method))
+            throw new ArgumentOutOfRangeException(nameof(method), method, "Unknown payment method.");
 
-        return new Payment(cardName, cardNumber, expiration, cvv, paymentMethod);
+        return new Payment(method, transactionId);
     }
 }

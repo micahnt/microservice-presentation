@@ -1,20 +1,23 @@
-version: '3.4'
+name: ecommerce
 
 services:
   catalogdb:
-    image: postgres
-
-  basketdb:
-    image: postgres
+    image: postgres:18
 
   distributedcache:
-    image: redis
+    image: redis:8
 
   orderdb:
-    image: mcr.microsoft.com/mssql/server
+    image: mcr.microsoft.com/mssql/server:2025-latest
 
   messagebroker:
-    image: rabbitmq:management
+    image: rabbitmq:4.3-management   # 3.13 left community support in Sep 2024; MassTransit 8.1 uses no deprecated features (checked)
+
+  ecommerce.identity.api:
+    image: ${DOCKER_REGISTRY-}ecommerceidentityapi
+    build:
+      context: .
+      dockerfile: Services/Identity/Ecommerce.Identity.Api/Dockerfile
 
   ecommerce.catalog.api:
     image: ${DOCKER_REGISTRY-}ecommercecatalogapi
@@ -48,10 +51,6 @@ services:
 
 volumes:
   postgres_catalog:
-  postgres_basket:
-
-
-
-
-
-
+  redis_data:
+  mssql_data:
+  rabbitmq_data:

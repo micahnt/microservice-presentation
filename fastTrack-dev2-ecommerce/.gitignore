@@ -328,3 +328,9 @@ ASALocalRun/
 
 # MFractors (Xamarin productivity tool) working folder 
 .mfractor/
+
+# Local secrets (fastTrack-dev2-ecommerce)
+.env
+
+# Vite build output
+dist/

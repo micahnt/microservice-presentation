@@ -1,44 +1,53 @@
+using Ecommerce.Catalog.Api.Startup;
+using Ecommerce.Shared.Exceptions.Handler;
+using Ecommerce.Shared.Messaging.MassTransit;
+using Ecommerce.Shared.Swagger;
 using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-var assembly = typeof(Program).Assembly;
-builder.Services.AddMediatR(config =>
-{
-    config.RegisterServicesFromAssembly(assembly);
-    config.AddOpenBehavior(typeof(ValidationBehavior<,>));
-    config.AddOpenBehavior(typeof(LoggingBehavior<,>));
-});
-builder.Services.AddValidatorsFromAssembly(assembly);
+// 1. Settings
+var jwt = builder.Services.AddJwtSettings(builder.Configuration);
 
-builder.Services.AddCarter();
+// 2. Cross-cutting
+builder.Logging.ClearProviders().AddJsonConsole();
+builder.Services.AddHttpLogging(_ => { });
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddJwtAuth(jwt);
 
-builder.Services.AddMarten(opts =>
-{
-    opts.Connection(builder.Configuration.GetConnectionString("Database")!);    
-}).UseLightweightSessions();
+// 3. Infrastructure
+var connectionString = builder.Configuration.GetConnectionString("Database")!;
+builder.Services.AddDbContext<CatalogDbContext>(o => o.UseNpgsql(connectionString));
+builder.Services.AddMessageBroker(builder.Configuration, typeof(Program).Assembly,
+    outbox => outbox.UsePostgres<CatalogDbContext>());
+builder.Services.AddHealthChecks().AddNpgSql(connectionString);
 
-if (builder.Environment.IsDevelopment())
-    builder.Services.InitializeMartenWith<CatalogInitialData>();
+// 4. Application
+builder.Services.AddApplicationServices();
 
-builder.Services.AddExceptionHandler<CustomExceptionHandler>();
-
-builder.Services.AddHealthChecks()
-    .AddNpgSql(builder.Configuration.GetConnectionString("Database")!);
+// 5. MVC + validation + docs
+builder.Services.AddControllers();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddSwaggerWithBearer();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-app.MapCarter();
-
-app.UseExceptionHandler(options => { });
-
-app.UseHealthChecks("/health",
-    new HealthCheckOptions
-    {
-        ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-    });
+app.UseExceptionHandler();
+app.UseHttpLogging();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+    await app.MigrateAndSeedAsync();
+}
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+app.MapHealthChecks("/health", new HealthCheckOptions
+    { ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse }).AllowAnonymous();
 
 app.Run();

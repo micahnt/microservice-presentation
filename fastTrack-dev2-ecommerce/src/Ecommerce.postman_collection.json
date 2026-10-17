@@ -1,730 +1,725 @@
 {
 	"info": {
-		"_postman_id": "f00e126b-3521-4034-b400-b790fc45d65a",
-		"name": "EShopMicroservices",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "2848550"
+		"_postman_id": "43ef63f2-ce02-4c69-a9b8-b2ee011f539c",
+		"name": "Ecommerce (fastTrack dev2)",
+		"description": "All requests go through the YARP gateway. Run a Login request first: it stores {{token}}, which every other request sends as a Bearer token.\n\nDiscount is gRPC (HTTP/2 only, not routed by the gateway): use Postman's gRPC tab or `grpcurl -plaintext localhost:6002 list`.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{token}}",
+				"type": "string"
+			}
+		]
 	},
 	"item": [
+		{
+			"name": "Identity",
+			"item": [
+				{
+					"name": "Login (admin)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{gateway_url}}/identity-service/auth/login",
+							"host": [
+								"{{gateway_url}}"
+							],
+							"path": [
+								"identity-service",
+								"auth",
+								"login"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@shop.local\",\n  \"password\": \"Admin123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"auth": {
+							"type": "noauth"
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const body = pm.response.json();",
+									"pm.collectionVariables.set('token', body.token);",
+									"pm.test('token stored', () => pm.expect(body.token).to.be.a('string'));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Login (customer)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{gateway_url}}/identity-service/auth/login",
+							"host": [
+								"{{gateway_url}}"
+							],
+							"path": [
+								"identity-service",
+								"auth",
+								"login"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"customer@shop.local\",\n  \"password\": \"Customer123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"auth": {
+							"type": "noauth"
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const body = pm.response.json();",
+									"pm.collectionVariables.set('token', body.token);",
+									"pm.test('token stored', () => pm.expect(body.token).to.be.a('string'));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Register",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{gateway_url}}/identity-service/auth/register",
+							"host": [
+								"{{gateway_url}}"
+							],
+							"path": [
+								"identity-service",
+								"auth",
+								"register"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"new.user@shop.local\",\n  \"password\": \"Passw0rd\",\n  \"firstName\": \"New\",\n  \"lastName\": \"User\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"auth": {
+							"type": "noauth"
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const body = pm.response.json();",
+									"pm.collectionVariables.set('token', body.token);",
+									"pm.test('token stored', () => pm.expect(body.token).to.be.a('string'));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Me",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{gateway_url}}/identity-service/auth/me",
+							"host": [
+								"{{gateway_url}}"
+							],
+							"path": [
+								"identity-service",
+								"auth",
+								"me"
+							]
+						}
+					}
+				}
+			]
+		},
 		{
 			"name": "Catalog",
 			"item": [
 				{
-					"name": "GET Product",
+					"name": "Get products",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{catalog_url}}/products?pageNumber=1&pageSize=5",
+							"raw": "{{gateway_url}}/catalog-service/products?pageIndex=0&pageSize=10",
 							"host": [
-								"{{catalog_url}}"
+								"{{gateway_url}}"
 							],
 							"path": [
+								"catalog-service",
 								"products"
 							],
 							"query": [
 								{
-									"key": "pageNumber",
-									"value": "1"
+									"key": "pageIndex",
+									"value": "0"
 								},
 								{
 									"key": "pageSize",
-									"value": "5"
+									"value": "10"
 								}
 							]
+						},
+						"auth": {
+							"type": "noauth"
 						}
-					},
-					"response": []
+					}
 				},
 				{
-					"name": "GET ProductById",
+					"name": "Search products",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{catalog_url}}/products/018d2605-1fef-4cbf-b9b4-cbf999a85cc1",
+							"raw": "{{gateway_url}}/catalog-service/products?pageIndex=0&pageSize=10&category=Smart Phone&search=x",
 							"host": [
-								"{{catalog_url}}"
+								"{{gateway_url}}"
 							],
 							"path": [
-								"products",
-								"018d2605-1fef-4cbf-b9b4-cbf999a85cc1"
+								"catalog-service",
+								"products"
+							],
+							"query": [
+								{
+									"key": "pageIndex",
+									"value": "0"
+								},
+								{
+									"key": "pageSize",
+									"value": "10"
+								},
+								{
+									"key": "category",
+									"value": "Smart Phone"
+								},
+								{
+									"key": "search",
+									"value": "x"
+								}
 							]
+						},
+						"auth": {
+							"type": "noauth"
 						}
-					},
-					"response": []
+					}
 				},
 				{
-					"name": "GET ProductByCategory",
+					"name": "Get product by id",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{catalog_url}}/products/category/c2",
+							"raw": "{{gateway_url}}/catalog-service/products/5334c996-8457-4cf0-815c-ed2b77c4ff61",
 							"host": [
-								"{{catalog_url}}"
+								"{{gateway_url}}"
 							],
 							"path": [
+								"catalog-service",
+								"products",
+								"5334c996-8457-4cf0-815c-ed2b77c4ff61"
+							]
+						},
+						"auth": {
+							"type": "noauth"
+						}
+					}
+				},
+				{
+					"name": "Get products by category",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{gateway_url}}/catalog-service/products/category/Smart Phone",
+							"host": [
+								"{{gateway_url}}"
+							],
+							"path": [
+								"catalog-service",
 								"products",
 								"category",
-								"c2"
+								"Smart Phone"
 							]
+						},
+						"auth": {
+							"type": "noauth"
 						}
-					},
-					"response": []
+					}
 				},
 				{
-					"name": "POST Product",
+					"name": "Get categories",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{gateway_url}}/catalog-service/products/categories",
+							"host": [
+								"{{gateway_url}}"
+							],
+							"path": [
+								"catalog-service",
+								"products",
+								"categories"
+							]
+						},
+						"auth": {
+							"type": "noauth"
+						}
+					}
+				},
+				{
+					"name": "Create product (admin)",
 					"request": {
 						"method": "POST",
-						"header": [],
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{gateway_url}}/catalog-service/products",
+							"host": [
+								"{{gateway_url}}"
+							],
+							"path": [
+								"catalog-service",
+								"products"
+							]
+						},
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"Name\": \"New Product A\",\r\n    \"Category\": [\"c1\", \"c2\"],\r\n    \"Description\": \"Description Product A\",\r\n    \"ImageFile\": \"ImageFile Product A\",\r\n    \"Price\": 199\r\n}",
+							"raw": "{\n  \"name\": \"Google Pixel 9\",\n  \"category\": [\n    \"Smart Phone\"\n  ],\n  \"description\": \"Created from Postman\",\n  \"imageFile\": \"product-1.png\",\n  \"price\": 799.0,\n  \"stock\": 20\n}",
 							"options": {
 								"raw": {
 									"language": "json"
 								}
 							}
-						},
-						"url": {
-							"raw": "{{catalog_url}}/products",
-							"host": [
-								"{{catalog_url}}"
-							],
-							"path": [
-								"products"
-							]
 						}
 					},
-					"response": []
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 201) pm.collectionVariables.set('product_id', pm.response.json().id);"
+								]
+							}
+						}
+					]
 				},
 				{
-					"name": "PUT Product",
+					"name": "Update product (admin)",
 					"request": {
 						"method": "PUT",
-						"header": [],
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{gateway_url}}/catalog-service/products/{{product_id}}",
+							"host": [
+								"{{gateway_url}}"
+							],
+							"path": [
+								"catalog-service",
+								"products",
+								"{{product_id}}"
+							]
+						},
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"Id\": \"018d2605-1fef-4cbf-b9b4-cbf999a85cc1\",\r\n    \"Name\": \"New Product A Updated\",\r\n    \"Category\": [\"c1\", \"c2\", \"cUpdated\"],\r\n    \"Description\": \"Description Product A Updated\",\r\n    \"ImageFile\": \"ImageFile Product A Updated\",\r\n    \"Price\": 299\r\n}",
+							"raw": "{\n  \"name\": \"Google Pixel 9\",\n  \"category\": [\n    \"Smart Phone\"\n  ],\n  \"description\": \"Created from Postman\",\n  \"imageFile\": \"product-1.png\",\n  \"price\": 749.0,\n  \"stock\": 20\n}",
 							"options": {
 								"raw": {
 									"language": "json"
 								}
 							}
-						},
-						"url": {
-							"raw": "{{catalog_url}}/products",
-							"host": [
-								"{{catalog_url}}"
-							],
-							"path": [
-								"products"
-							]
 						}
-					},
-					"response": []
+					}
 				},
 				{
-					"name": "DELETE Product",
+					"name": "Delete product (admin)",
 					"request": {
 						"method": "DELETE",
 						"header": [],
 						"url": {
-							"raw": "{{catalog_url}}/products/018d2605-1fef-4cbf-b9b4-cbf999a85cc1",
+							"raw": "{{gateway_url}}/catalog-service/products/{{product_id}}",
 							"host": [
-								"{{catalog_url}}"
+								"{{gateway_url}}"
 							],
 							"path": [
+								"catalog-service",
 								"products",
-								"018d2605-1fef-4cbf-b9b4-cbf999a85cc1"
+								"{{product_id}}"
 							]
 						}
-					},
-					"response": []
-				},
-				{
-					"name": "Health",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{catalog_url}}/health",
-							"host": [
-								"{{catalog_url}}"
-							],
-							"path": [
-								"health"
-							]
-						}
-					},
-					"response": []
+					}
 				}
 			]
 		},
 		{
 			"name": "Basket",
+			"description": "Always the signed-in user's basket (user id from the token).",
 			"item": [
 				{
-					"name": "GET BasketByUsername",
+					"name": "Get basket",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{basket_url}}/basket/swn",
+							"raw": "{{gateway_url}}/basket-service/basket",
 							"host": [
-								"{{basket_url}}"
+								"{{gateway_url}}"
 							],
 							"path": [
-								"basket",
-								"swn"
+								"basket-service",
+								"basket"
 							]
 						}
-					},
-					"response": []
+					}
 				},
 				{
-					"name": "POST Store Basket",
+					"name": "Store basket",
 					"request": {
 						"method": "POST",
-						"header": [],
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{gateway_url}}/basket-service/basket",
+							"host": [
+								"{{gateway_url}}"
+							],
+							"path": [
+								"basket-service",
+								"basket"
+							]
+						},
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n\t\"Cart\": \r\n        {\r\n            \"UserName\": \"swn\",\r\n            \"Items\": [\r\n                {\r\n                \"Quantity\": 2,\r\n                \"Color\": \"Red\",\r\n                \"Price\": 500,\r\n                \"ProductId\": \"5334c996-8457-4cf0-815c-ed2b77c4ff61\",\r\n                \"ProductName\": \"IPhone X\"\r\n                },\r\n                {\r\n                \"Quantity\": 1,\r\n                \"Color\": \"Blue\",\r\n                \"Price\": 500,\r\n                \"ProductId\": \"c67d6323-e8b1-4bdf-9a75-b0d0d2e7e914\",\r\n                \"ProductName\": \"Samsung 10\"\r\n                }\r\n            ]  \r\n        }\r\n}",
+							"raw": "{\n  \"items\": [\n    {\n      \"productId\": \"5334c996-8457-4cf0-815c-ed2b77c4ff61\",\n      \"quantity\": 2\n    },\n    {\n      \"productId\": \"c67d6323-e8b1-4bdf-9a75-b0d0d2e7e914\",\n      \"quantity\": 1\n    }\n  ]\n}",
 							"options": {
 								"raw": {
 									"language": "json"
 								}
 							}
 						},
-						"url": {
-							"raw": "{{basket_url}}/basket",
-							"host": [
-								"{{basket_url}}"
-							],
-							"path": [
-								"basket"
-							]
-						}
-					},
-					"response": []
+						"description": "Send only product ids and quantities. Prices come from Catalog and discounts from Discount (gRPC)."
+					}
 				},
 				{
-					"name": "DELETE BasketByUsername",
+					"name": "Checkout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{gateway_url}}/basket-service/basket/checkout",
+							"host": [
+								"{{gateway_url}}"
+							],
+							"path": [
+								"basket-service",
+								"basket",
+								"checkout"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"firstName\": \"Demo\",\n  \"lastName\": \"Customer\",\n  \"addressLine\": \"1 Main Street\",\n  \"country\": \"Vietnam\",\n  \"state\": \"HCMC\",\n  \"zipCode\": \"700000\",\n  \"paymentMethod\": \"FakeCard\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"description": "paymentMethod: CashOnDelivery or FakeCard. FakeCard orders over $5,000 are declined. Returns 202; the order is created asynchronously by Ordering."
+					}
+				},
+				{
+					"name": "Delete basket",
 					"request": {
 						"method": "DELETE",
 						"header": [],
 						"url": {
-							"raw": "{{basket_url}}/basket/swn",
+							"raw": "{{gateway_url}}/basket-service/basket",
 							"host": [
-								"{{basket_url}}"
+								"{{gateway_url}}"
 							],
 							"path": [
-								"basket",
-								"swn"
+								"basket-service",
+								"basket"
 							]
 						}
-					},
-					"response": []
-				},
-				{
-					"name": "POST Checkout Basket",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\r\n\t\"BasketCheckoutDto\": \r\n        {\r\n\t\t  \"userName\": \"swn\",\r\n\t\t  \"CustomerId\": \"189dc8dc-990f-48e0-a37b-e6f2b60b9d7d\",\r\n\t\t  \"totalPrice\": 0,\r\n\t\t  \"firstName\": \"swn\",\r\n\t\t  \"lastName\": \"swn\",\r\n\t\t  \"emailAddress\": \"test@test.com\",\r\n\t\t  \"addressLine\": \"34 Charles Street\",\r\n\t\t  \"country\": \"USA\",\r\n\t\t  \"state\": \"Michigan\",\r\n\t\t  \"zipCode\": \"48198\",\r\n\t\t  \"cardName\": \"swn\",\r\n\t\t  \"cardNumber\": \"485-3184\",\r\n\t\t  \"expiration\": \"11/30\",\r\n\t\t  \"cvv\": \"333\",\r\n\t\t  \"paymentMethod\": 1\r\n\t\t}\r\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{basket_url}}/basket/checkout",
-							"host": [
-								"{{basket_url}}"
-							],
-							"path": [
-								"basket",
-								"checkout"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Health",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{basket_url}}/health",
-							"host": [
-								"{{basket_url}}"
-							],
-							"path": [
-								"health"
-							]
-						}
-					},
-					"response": []
+					}
 				}
 			]
-		},
-		{
-			"name": "Discount",
-			"item": []
 		},
 		{
 			"name": "Ordering",
 			"item": [
 				{
-					"name": "POST Order",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\r\n\t\"Order\": \r\n        {\r\n        \t\"CustomerId\": \"58c49479-ec65-4de2-86e7-033c546291aa\",\r\n            \"OrderName\": \"ORD_4\",\r\n            \"ShippingAddress\": \r\n            \t{\r\n            \t\t\"FirstName\": \"Valentina\",\r\n\t                \"LastName\": \"Legros\",\r\n\t                \"EmailAddress\": \"valeg@xmail.com\",\r\n\t                \"AddressLine\": \"Wiegand Pass Suite 825\",\r\n\t                \"Country\": \"USA\",\r\n\t                \"State\": \"Oklahoma\",\r\n\t                \"ZipCode\": \"41248\"\r\n            \t},\r\n            \"BillingAddress\": \r\n            \t{\r\n            \t\t\"FirstName\": \"Valentina\",\r\n\t                \"LastName\": \"Legros\",\r\n\t                \"EmailAddress\": \"valeg@xmail.com\",\r\n\t                \"AddressLine\": \"Wiegand Pass Suite 825\",\r\n\t                \"Country\": \"USA\",\r\n\t                \"State\": \"Oklahoma\",\r\n\t                \"ZipCode\": \"41248\"\r\n            \t},\r\n            \"Payment\": \r\n            \t{\r\n            \t\t\"CardName\": \"CARD_1\",\r\n\t                \"CardNumber\": \"875-444-3739\",\r\n\t                \"Expiration\": \"12/29\",\r\n\t                \"Cvv\": \"455\",\r\n\t                \"PaymentMethod\": 1\r\n            \t},\r\n            \"Status\": 2,\r\n            \"OrderItems\": [\r\n                {\r\n\t                \"ProductId\": \"5334c996-8457-4cf0-815c-ed2b77c4ff61\",\r\n\t                //\"ProductName\": \"IPhone X\",\r\n\t                \"Quantity\": 2,\r\n\t                \"Price\": 500\r\n                },\r\n                {\r\n\t                \"ProductId\": \"c67d6323-e8b1-4bdf-9a75-b0d0d2e7e914\",\r\n\t                //\"ProductName\": \"Samsung 10\",\r\n\t                \"Quantity\": 1,\r\n\t                \"Price\": 500\r\n                }\r\n            ]  \r\n        }\r\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{ordering_url}}/orders",
-							"host": [
-								"{{ordering_url}}"
-							],
-							"path": [
-								"orders"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "PUT Order",
-					"request": {
-						"method": "PUT",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\r\n\t\"Order\": \r\n        {\r\n            \"Id\": \"354c00f6-b04c-46ed-8d6d-f9f42d7bdf98\",\r\n        \t\"CustomerId\": \"58c49479-ec65-4de2-86e7-033c546291aa\",\r\n            \"OrderName\": \"ORD_5\",\r\n            \"ShippingAddress\": \r\n            \t{\r\n            \t\t\"FirstName\": \"Mehmet\",\r\n\t                \"LastName\": \"Legros\",\r\n\t                \"EmailAddress\": \"valeg@xmail.com\",\r\n\t                \"AddressLine\": \"Wiegand Pass Suite 825\",\r\n\t                \"Country\": \"USA\",\r\n\t                \"State\": \"New York\",\r\n\t                \"ZipCode\": \"41248\"\r\n            \t},\r\n            \"BillingAddress\": \r\n            \t{\r\n            \t\t\"FirstName\": \"Mehmet\",\r\n\t                \"LastName\": \"Legros\",\r\n\t                \"EmailAddress\": \"valeg@xmail.com\",\r\n\t                \"AddressLine\": \"Wiegand Pass Suite 825\",\r\n\t                \"Country\": \"USA\",\r\n\t                \"State\": \"Oklahoma\",\r\n\t                \"ZipCode\": \"41248\"\r\n            \t},\r\n            \"Payment\": \r\n            \t{\r\n            \t\t\"CardName\": \"CARD_2\",\r\n\t                \"CardNumber\": \"875-444-3739\",\r\n\t                \"Expiration\": \"12/29\",\r\n\t                \"CVV\": \"455\",\r\n\t                \"PaymentMethod\": 1\r\n            \t},\r\n            \"Status\": 2,\r\n            \"OrderItems\": [\r\n                {\r\n\t                \"ProductId\": \"5334c996-8457-4cf0-815c-ed2b77c4ff61\",\r\n\t                //\"ProductName\": \"IPhone X\",\r\n\t                \"Quantity\": 2,\r\n\t                \"Price\": 500\r\n                },\r\n                {\r\n\t                \"ProductId\": \"c67d6323-e8b1-4bdf-9a75-b0d0d2e7e914\",\r\n\t                //\"ProductName\": \"Samsung 10\",\r\n\t                \"Quantity\": 1,\r\n\t                \"Price\": 500\r\n                }\r\n            ]  \r\n        }\r\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{ordering_url}}/orders",
-							"host": [
-								"{{ordering_url}}"
-							],
-							"path": [
-								"orders"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "GET Orders w/ Pagination",
+					"name": "My orders",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{ordering_url}}/orders?PageIndex=0&PageSize=2",
+							"raw": "{{gateway_url}}/ordering-service/orders/mine",
 							"host": [
-								"{{ordering_url}}"
+								"{{gateway_url}}"
 							],
 							"path": [
+								"ordering-service",
+								"orders",
+								"mine"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const orders = pm.response.json();",
+									"if (orders.length) pm.collectionVariables.set('order_id', orders[0].id);"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Get order by id",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{gateway_url}}/ordering-service/orders/{{order_id}}",
+							"host": [
+								"{{gateway_url}}"
+							],
+							"path": [
+								"ordering-service",
+								"orders",
+								"{{order_id}}"
+							]
+						}
+					}
+				},
+				{
+					"name": "All orders (admin)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{gateway_url}}/ordering-service/orders?pageIndex=0&pageSize=10",
+							"host": [
+								"{{gateway_url}}"
+							],
+							"path": [
+								"ordering-service",
 								"orders"
 							],
 							"query": [
 								{
-									"key": "PageIndex",
+									"key": "pageIndex",
 									"value": "0"
 								},
 								{
-									"key": "PageSize",
-									"value": "2"
+									"key": "pageSize",
+									"value": "10"
 								}
 							]
 						}
-					},
-					"response": []
+					}
 				},
 				{
-					"name": "GET Orders by Name",
+					"name": "Orders by name (admin)",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{ordering_url}}/orders/ORD_2",
+							"raw": "{{gateway_url}}/ordering-service/orders?pageIndex=0&pageSize=10&name=ORD",
 							"host": [
-								"{{ordering_url}}"
+								"{{gateway_url}}"
 							],
 							"path": [
-								"orders",
-								"ORD_2"
+								"ordering-service",
+								"orders"
+							],
+							"query": [
+								{
+									"key": "pageIndex",
+									"value": "0"
+								},
+								{
+									"key": "pageSize",
+									"value": "10"
+								},
+								{
+									"key": "name",
+									"value": "ORD"
+								}
 							]
 						}
-					},
-					"response": []
+					}
 				},
 				{
-					"name": "GET Orders by Customer",
+					"name": "Orders by customer (admin)",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{ordering_url}}/orders/customer/58c49479-ec65-4de2-86e7-033c546291aa",
+							"raw": "{{gateway_url}}/ordering-service/orders/customer/58c49479-ec65-4de2-86e7-033c546291aa",
 							"host": [
-								"{{ordering_url}}"
+								"{{gateway_url}}"
 							],
 							"path": [
+								"ordering-service",
 								"orders",
 								"customer",
 								"58c49479-ec65-4de2-86e7-033c546291aa"
 							]
 						}
-					},
-					"response": []
+					}
 				},
 				{
-					"name": "DELETE Order",
+					"name": "Update order status (admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{gateway_url}}/ordering-service/orders/{{order_id}}/status",
+							"host": [
+								"{{gateway_url}}"
+							],
+							"path": [
+								"ordering-service",
+								"orders",
+								"{{order_id}}",
+								"status"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"Shipped\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"description": "Shipped, Completed or Cancelled."
+					}
+				},
+				{
+					"name": "Delete order (admin)",
 					"request": {
 						"method": "DELETE",
 						"header": [],
 						"url": {
-							"raw": "{{ordering_url}}/orders/354c00f6-b04c-46ed-8d6d-f9f42d7bdf98",
+							"raw": "{{gateway_url}}/ordering-service/orders/{{order_id}}",
 							"host": [
-								"{{ordering_url}}"
+								"{{gateway_url}}"
 							],
 							"path": [
+								"ordering-service",
 								"orders",
-								"354c00f6-b04c-46ed-8d6d-f9f42d7bdf98"
+								"{{order_id}}"
 							]
 						}
-					},
-					"response": []
-				},
-				{
-					"name": "Health",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{ordering_url}}/health",
-							"host": [
-								"{{ordering_url}}"
-							],
-							"path": [
-								"health"
-							]
-						}
-					},
-					"response": []
+					}
 				}
 			]
+		}
+	],
+	"variable": [
+		{
+			"key": "gateway_url",
+			"value": "http://localhost:6004",
+			"type": "string"
 		},
 		{
-			"name": "Ecommerce.YarpApiGateway",
-			"item": [
-				{
-					"name": "Catalog",
-					"item": [
-						{
-							"name": "GET Product",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{yarp_url}}/catalog-service/products?pageNumber=1&pageSize=5",
-									"host": [
-										"{{yarp_url}}"
-									],
-									"path": [
-										"catalog-service",
-										"products"
-									],
-									"query": [
-										{
-											"key": "pageNumber",
-											"value": "1"
-										},
-										{
-											"key": "pageSize",
-											"value": "5"
-										}
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "GET ProductById",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{yarp_url}}/catalog-service/products/5334c996-8457-4cf0-815c-ed2b77c4ff61",
-									"host": [
-										"{{yarp_url}}"
-									],
-									"path": [
-										"catalog-service",
-										"products",
-										"5334c996-8457-4cf0-815c-ed2b77c4ff61"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "GET ProductByCategory",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{yarp_url}}/catalog-service/products/category/c2",
-									"host": [
-										"{{yarp_url}}"
-									],
-									"path": [
-										"catalog-service",
-										"products",
-										"category",
-										"c2"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "POST Product",
-							"request": {
-								"method": "POST",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\r\n    \"Name\": \"New Product A\",\r\n    \"Category\": [\"c1\", \"c2\"],\r\n    \"Description\": \"Description Product A\",\r\n    \"ImageFile\": \"ImageFile Product A\",\r\n    \"Price\": 199\r\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{yarp_url}}/catalog-service/products",
-									"host": [
-										"{{yarp_url}}"
-									],
-									"path": [
-										"catalog-service",
-										"products"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "DELETE Product",
-							"request": {
-								"method": "DELETE",
-								"header": [],
-								"url": {
-									"raw": "{{yarp_url}}/catalog-service/products/018d2605-1fef-4cbf-b9b4-cbf999a85cc1",
-									"host": [
-										"{{yarp_url}}"
-									],
-									"path": [
-										"catalog-service",
-										"products",
-										"018d2605-1fef-4cbf-b9b4-cbf999a85cc1"
-									]
-								}
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "Basket",
-					"item": [
-						{
-							"name": "GET BasketByUsername",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{yarp_url}}/basket-service/basket/swn",
-									"host": [
-										"{{yarp_url}}"
-									],
-									"path": [
-										"basket-service",
-										"basket",
-										"swn"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "POST Store Basket",
-							"request": {
-								"method": "POST",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\r\n\t\"Cart\": \r\n        {\r\n            \"UserName\": \"swn\",\r\n            \"Items\": [\r\n                {\r\n                \"Quantity\": 2,\r\n                \"Color\": \"Red\",\r\n                \"Price\": 500,\r\n                \"ProductId\": \"5334c996-8457-4cf0-815c-ed2b77c4ff61\",\r\n                \"ProductName\": \"IPhone X\"\r\n                },\r\n                {\r\n                \"Quantity\": 1,\r\n                \"Color\": \"Blue\",\r\n                \"Price\": 500,\r\n                \"ProductId\": \"c67d6323-e8b1-4bdf-9a75-b0d0d2e7e914\",\r\n                \"ProductName\": \"Samsung 10\"\r\n                }\r\n            ]  \r\n        }\r\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{yarp_url}}/basket-service/basket",
-									"host": [
-										"{{yarp_url}}"
-									],
-									"path": [
-										"basket-service",
-										"basket"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "DELETE BasketByUsername",
-							"request": {
-								"method": "DELETE",
-								"header": [],
-								"url": {
-									"raw": "{{yarp_url}}/basket-service/basket/swn",
-									"host": [
-										"{{yarp_url}}"
-									],
-									"path": [
-										"basket-service",
-										"basket",
-										"swn"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "POST Checkout Basket",
-							"request": {
-								"method": "POST",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\r\n\t\"BasketCheckoutDto\": \r\n        {\r\n\t\t  \"userName\": \"swn\",\r\n\t\t  \"CustomerId\": \"189dc8dc-990f-48e0-a37b-e6f2b60b9d7d\",\r\n\t\t  \"totalPrice\": 0,\r\n\t\t  \"firstName\": \"swn\",\r\n\t\t  \"lastName\": \"swn\",\r\n\t\t  \"emailAddress\": \"test@test.com\",\r\n\t\t  \"addressLine\": \"34 Charles Street\",\r\n\t\t  \"country\": \"USA\",\r\n\t\t  \"state\": \"Michigan\",\r\n\t\t  \"zipCode\": \"48198\",\r\n\t\t  \"cardName\": \"swn\",\r\n\t\t  \"cardNumber\": \"485-3184\",\r\n\t\t  \"expiration\": \"11/30\",\r\n\t\t  \"cvv\": \"333\",\r\n\t\t  \"paymentMethod\": 1\r\n\t\t}\r\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{yarp_url}}/basket-service/basket/checkout",
-									"host": [
-										"{{yarp_url}}"
-									],
-									"path": [
-										"basket-service",
-										"basket",
-										"checkout"
-									]
-								}
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "Ordering",
-					"item": [
-						{
-							"name": "GET Orders w/ Pagination",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{yarp_url}}/ordering-service/orders?PageIndex=0&PageSize=2",
-									"host": [
-										"{{yarp_url}}"
-									],
-									"path": [
-										"ordering-service",
-										"orders"
-									],
-									"query": [
-										{
-											"key": "PageIndex",
-											"value": "0"
-										},
-										{
-											"key": "PageSize",
-											"value": "2"
-										}
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "GET Orders by Name",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{yarp_url}}/ordering-service/orders/ORD_2",
-									"host": [
-										"{{yarp_url}}"
-									],
-									"path": [
-										"ordering-service",
-										"orders",
-										"ORD_2"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "GET Orders by Customer",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{yarp_url}}/ordering-service/orders/customer/58c49479-ec65-4de2-86e7-033c546291aa",
-									"host": [
-										"{{yarp_url}}"
-									],
-									"path": [
-										"ordering-service",
-										"orders",
-										"customer",
-										"58c49479-ec65-4de2-86e7-033c546291aa"
-									]
-								}
-							},
-							"response": []
-						}
-					]
-				}
-			]
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "product_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "order_id",
+			"value": "",
+			"type": "string"
 		}
 	]
 }

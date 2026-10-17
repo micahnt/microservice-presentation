@@ -1,8 +1,10 @@
-﻿using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Ecommerce.Shared.Auth;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Ecommerce.Ordering.Infrastructure.Data.Interceptors;
-public class AuditableEntityInterceptor : SaveChangesInterceptor
+
+public class AuditableEntityInterceptor(ICurrentUser currentUser) : SaveChangesInterceptor
 {
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
     {
@@ -20,17 +22,20 @@ public class AuditableEntityInterceptor : SaveChangesInterceptor
     {
         if (context == null) return;
 
+        // Message consumers and startup seeding run without an HTTP user.
+        var user = currentUser.IsAuthenticated ? currentUser.Email : "system";
+
         foreach (var entry in context.ChangeTracker.Entries<IEntity>())
         {
             if (entry.State == EntityState.Added)
             {
-                entry.Entity.CreatedBy = "mehmet";
+                entry.Entity.CreatedBy = user;
                 entry.Entity.CreatedAt = DateTime.UtcNow;
             }
 
             if (entry.State == EntityState.Added || entry.State == EntityState.Modified || entry.HasChangedOwnedEntities())
             {
-                entry.Entity.LastModifiedBy = "mehmet";
+                entry.Entity.LastModifiedBy = user;
                 entry.Entity.LastModified = DateTime.UtcNow;
             }
         }

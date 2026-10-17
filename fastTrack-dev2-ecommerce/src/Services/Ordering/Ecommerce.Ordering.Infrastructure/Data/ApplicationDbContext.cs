@@ -1,22 +1,25 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Ecommerce.Ordering.Application.Data;
-using Ecommerce.Ordering.Domain.Models;
 using System.Reflection;
+using Ecommerce.Ordering.Application.Data;
+using MassTransit;
 
 namespace Ecommerce.Ordering.Infrastructure.Data;
-public class ApplicationDbContext : DbContext, IApplicationDbContext
-{
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) 
-        : base(options) { }
 
+public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+    : DbContext(options), IApplicationDbContext
+{
     public DbSet<Customer> Customers => Set<Customer>();
-    public DbSet<Product> Products => Set<Product>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+
+        // MassTransit outbox/inbox tables
+        builder.AddInboxStateEntity();
+        builder.AddOutboxMessageEntity();
+        builder.AddOutboxStateEntity();
+
         base.OnModelCreating(builder);
     }
 }

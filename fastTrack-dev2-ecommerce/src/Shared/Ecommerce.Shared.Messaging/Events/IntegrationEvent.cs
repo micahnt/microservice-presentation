@@ -1,7 +1,8 @@
-﻿namespace Ecommerce.Shared.Messaging.Events;
+namespace Ecommerce.Shared.Messaging.Events;
+
+// Id and OccurredOnUtc are set once, so a redelivered message keeps the same Id (de-duplication).
 public record IntegrationEvent
 {
-    public Guid Id => Guid.NewGuid();
-    public DateTime OccurredOn => DateTime.Now;
-    public string EventType => GetType().AssemblyQualifiedName;
+    public Guid Id { get; init; } = Guid.NewGuid();
+    public DateTime OccurredOnUtc { get; init; } = DateTime.UtcNow;
 }

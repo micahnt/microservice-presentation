@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -7,7 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Stay on MassTransit 8.x: v9 needs a commercial license -->
+    <PackageReference Include="MassTransit.EntityFrameworkCore" Version="8.1.3" />
     <PackageReference Include="MassTransit.RabbitMQ" Version="8.1.3" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.11" />
   </ItemGroup>
 
 </Project>

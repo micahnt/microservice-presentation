@@ -1,9 +1,14 @@
-﻿using Microsoft.EntityFrameworkCore.Diagnostics;
+using Ecommerce.Ordering.Application.Consumers;
+using Ecommerce.Ordering.Application.Data;
+using Ecommerce.Ordering.Application.Payments;
+using Ecommerce.Ordering.Infrastructure.Payments;
+using Ecommerce.Shared.Messaging.MassTransit;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Ecommerce.Ordering.Application.Data;
 
 namespace Ecommerce.Ordering.Infrastructure;
+
 public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructureServices
@@ -11,9 +16,7 @@ public static class DependencyInjection
     {
         var connectionString = configuration.GetConnectionString("Database");
 
-        // Add services to the container.
         services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
-        services.AddScoped<ISaveChangesInterceptor, DispatchDomainEventsInterceptor>();
 
         services.AddDbContext<ApplicationDbContext>((sp, options) =>
         {
@@ -21,7 +24,12 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString);
         });
 
-        services.AddScoped<IApplicationDbContext, ApplicationDbContext>();
+        services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<ApplicationDbContext>());
+        services.AddScoped<IPaymentGateway, FakePaymentGateway>();
+
+        // Consumers live in the Application assembly; the outbox uses this DbContext (SQL Server).
+        services.AddMessageBroker(configuration, typeof(BasketCheckoutEventConsumer).Assembly,
+            outbox => outbox.UseSqlServer<ApplicationDbContext>());
 
         return services;
     }

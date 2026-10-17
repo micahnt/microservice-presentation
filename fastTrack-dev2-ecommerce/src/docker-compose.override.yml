@@ -1,7 +1,9 @@
-version: '3.4'
+# Plain HTTP everywhere: the gateway (port 6004) is the only public entry point; services stay HTTP behind it.
+# JWT_SIGNING_KEY comes from src/.env (copy .env.example).
+# App services restart until their database / broker is ready (they migrate on startup in Development).
 
 services:
-  catalogdb:
+  catalogdb:                       # Postgres: CatalogDb + IdentityDb
     container_name: catalogdb
     environment:
       - POSTGRES_USER=postgres
@@ -9,29 +11,30 @@ services:
       - POSTGRES_DB=CatalogDb
     restart: always
     ports:
-        - "5432:5432"
+      - "5432:5432"
     volumes:
-      - postgres_catalog:/var/lib/postgresql/data/ 
-      
-  basketdb:
-    container_name: basketdb
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=BasketDb
-    restart: always
-    ports:
-        - "5433:5432"
-    volumes:
-      - postgres_basket:/var/lib/postgresql/data/ 
+      - postgres_catalog:/var/lib/postgresql   # Postgres 18+ keeps its data in a versioned subfolder
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
-  distributedcache:
+  distributedcache:                # Redis: baskets (key per user, with expiry)
     container_name: distributedcache
+    command: ["redis-server", "--appendonly", "yes"]   # append-only log: a crash loses at most ~1 s of writes
     restart: always
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data             # redis:8 declares no VOLUME; without this, baskets die with the container
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
-  orderdb:
+  orderdb:                         # SQL Server: OrderDb
     container_name: orderdb
     environment:
       - ACCEPT_EULA=Y
@@ -39,6 +42,8 @@ services:
     restart: always
     ports:
       - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql    # the SQL Server image declares no VOLUME; without this, orders die with the container
 
   messagebroker:
     container_name: messagebroker
@@ -50,90 +55,106 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq   # named, so queued messages survive `down`; needs the fixed hostname above
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+
+  ecommerce.identity.api:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ConnectionStrings__Database=Server=catalogdb;Port=5432;Database=IdentityDb;User Id=postgres;Password=postgres;Include Error Detail=true
+      - Jwt__SigningKey=${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in src/.env (see .env.example)}
+    depends_on:
+      catalogdb:
+        condition: service_healthy
+    restart: on-failure
+    ports:
+      - "6005:8080"
 
   ecommerce.catalog.api:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=8080
-      - ASPNETCORE_HTTPS_PORTS=8081
       - ConnectionStrings__Database=Server=catalogdb;Port=5432;Database=CatalogDb;User Id=postgres;Password=postgres;Include Error Detail=true
+      - MessageBroker__Host=amqp://ecommerce-mq:5672
+      - MessageBroker__UserName=guest
+      - MessageBroker__Password=guest
+      - Jwt__SigningKey=${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in src/.env (see .env.example)}
     depends_on:
-      - catalogdb
+      catalogdb:
+        condition: service_healthy
+      messagebroker:
+        condition: service_healthy
+    restart: on-failure
     ports:
       - "6000:8080"
-      - "6060:8081"
-    volumes:
-      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
-      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
 
   ecommerce.basket.api:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=8080
-      - ASPNETCORE_HTTPS_PORTS=8081
-      - ConnectionStrings__Database=Server=basketdb;Port=5432;Database=BasketDb;User Id=postgres;Password=postgres;Include Error Detail=true
       - ConnectionStrings__Redis=distributedcache:6379
-      - GrpcSettings__DiscountUrl=https://ecommerce.discount.grpc:8081
+      - GrpcSettings__DiscountUrl=http://ecommerce.discount.grpc:8080
+      - CatalogSettings__Url=http://ecommerce.catalog.api:8080
       - MessageBroker__Host=amqp://ecommerce-mq:5672
       - MessageBroker__UserName=guest
       - MessageBroker__Password=guest
+      - Jwt__SigningKey=${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in src/.env (see .env.example)}
     depends_on:
-      - basketdb
-      - distributedcache
-      - ecommerce.discount.grpc
-      - messagebroker
+      distributedcache:
+        condition: service_healthy
+      messagebroker:
+        condition: service_healthy
+      ecommerce.discount.grpc:
+        condition: service_started
+      ecommerce.catalog.api:
+        condition: service_started
+    restart: on-failure
     ports:
       - "6001:8080"
-      - "6061:8081"
-    volumes:
-      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
-      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
 
-  ecommerce.discount.grpc:
+  ecommerce.discount.grpc:         # HTTP/2 only (h2c): use grpcurl -plaintext localhost:6002 list
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=8080
-      - ASPNETCORE_HTTPS_PORTS=8081
       - ConnectionStrings__Database=Data Source=discountdb
+    restart: on-failure
     ports:
       - "6002:8080"
-      - "6062:8081"
-    volumes:
-      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
-      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
 
   ecommerce.ordering.api:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=8080
-      - ASPNETCORE_HTTPS_PORTS=8081
       - ConnectionStrings__Database=Server=orderdb;Database=OrderDb;User Id=sa;Password=SwN12345678;Encrypt=False;TrustServerCertificate=True
       - MessageBroker__Host=amqp://ecommerce-mq:5672
       - MessageBroker__UserName=guest
       - MessageBroker__Password=guest
-      - FeatureManagement__OrderFullfilment=false
+      - FeatureManagement__OrderFullfilment=true
+      - Jwt__SigningKey=${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in src/.env (see .env.example)}
     depends_on:
-      - orderdb
-      - messagebroker
+      orderdb:
+        condition: service_started
+      messagebroker:
+        condition: service_healthy
+    restart: on-failure
     ports:
       - "6003:8080"
-      - "6063:8081"
-    volumes:
-      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
-      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
 
-  ecommerce.yarpapigateway:
+  ecommerce.yarpapigateway:        # UI (React build) + API on one origin: http://localhost:6004
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=8080
-      - ASPNETCORE_HTTPS_PORTS=8081
     depends_on:
+      - ecommerce.identity.api
       - ecommerce.catalog.api
       - ecommerce.basket.api
       - ecommerce.ordering.api
+    restart: on-failure
     ports:
       - "6004:8080"
-      - "6064:8081"
-    volumes:
-      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
-      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro

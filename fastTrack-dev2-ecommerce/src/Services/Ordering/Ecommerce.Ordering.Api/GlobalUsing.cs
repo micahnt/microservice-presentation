@@ -1,4 +1,9 @@
-﻿global using Carter;
-global using Mapster;
-global using MediatR;
+global using Ecommerce.Ordering.Api.Models;
 global using Ecommerce.Ordering.Application.Dtos;
+global using Ecommerce.Ordering.Application.Orders;
+global using Ecommerce.Ordering.Domain.Enums;
+global using Ecommerce.Shared.Auth;
+global using Ecommerce.Shared.Pagination;
+global using FluentValidation;
+global using Microsoft.AspNetCore.Authorization;
+global using Microsoft.AspNetCore.Mvc;

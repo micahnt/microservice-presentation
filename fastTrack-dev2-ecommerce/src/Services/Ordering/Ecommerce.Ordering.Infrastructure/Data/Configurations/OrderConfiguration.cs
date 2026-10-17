@@ -1,10 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Ecommerce.Ordering.Domain.Enums;
-using Ecommerce.Ordering.Domain.Models;
-using Ecommerce.Ordering.Domain.ValueObjects;
 
 namespace Ecommerce.Ordering.Infrastructure.Data.Configurations;
+
 public class OrderConfiguration : IEntityTypeConfiguration<Order>
 {
     public void Configure(EntityTypeBuilder<Order> builder)
@@ -33,89 +30,37 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
                     .IsRequired();
             });
 
-        builder.ComplexProperty(
-           o => o.ShippingAddress, addressBuilder =>
-           {
-               addressBuilder.Property(a => a.FirstName)
-                   .HasMaxLength(50)
-                   .IsRequired();
-
-               addressBuilder.Property(a => a.LastName)
-                    .HasMaxLength(50)
-                    .IsRequired();
-
-               addressBuilder.Property(a => a.EmailAddress)
-                   .HasMaxLength(50);
-
-               addressBuilder.Property(a => a.AddressLine)
-                   .HasMaxLength(180)
-                   .IsRequired();
-
-               addressBuilder.Property(a => a.Country)
-                   .HasMaxLength(50);
-
-               addressBuilder.Property(a => a.State)
-                   .HasMaxLength(50);
-
-               addressBuilder.Property(a => a.ZipCode)
-                   .HasMaxLength(5)
-                   .IsRequired();
-           });
-
-        builder.ComplexProperty(
-          o => o.BillingAddress, addressBuilder =>
-          {
-              addressBuilder.Property(a => a.FirstName)
-                   .HasMaxLength(50)
-                   .IsRequired();
-
-              addressBuilder.Property(a => a.LastName)
-                   .HasMaxLength(50)
-                   .IsRequired();
-
-              addressBuilder.Property(a => a.EmailAddress)
-                  .HasMaxLength(50);
-
-              addressBuilder.Property(a => a.AddressLine)
-                  .HasMaxLength(180)
-                  .IsRequired();
-
-              addressBuilder.Property(a => a.Country)
-                  .HasMaxLength(50);
-
-              addressBuilder.Property(a => a.State)
-                  .HasMaxLength(50);
-
-              addressBuilder.Property(a => a.ZipCode)
-                  .HasMaxLength(5)
-                  .IsRequired();
-          });
+        builder.ComplexProperty(o => o.ShippingAddress, ConfigureAddress);
+        builder.ComplexProperty(o => o.BillingAddress, ConfigureAddress);
 
         builder.ComplexProperty(
                o => o.Payment, paymentBuilder =>
                {
-                   paymentBuilder.Property(p => p.CardName)
-                       .HasMaxLength(50);
-
-                   paymentBuilder.Property(p => p.CardNumber)
-                       .HasMaxLength(24)
-                       .IsRequired();
-
-                   paymentBuilder.Property(p => p.Expiration)
-                       .HasMaxLength(10);
-
-                   paymentBuilder.Property(p => p.CVV)
-                       .HasMaxLength(3);
-
-                   paymentBuilder.Property(p => p.PaymentMethod);
+                   paymentBuilder.Property(p => p.Method).IsRequired();
+                   paymentBuilder.Property(p => p.TransactionId).HasMaxLength(50);
                });
 
         builder.Property(o => o.Status)
-            .HasDefaultValue(OrderStatus.Draft)
+            .HasDefaultValue(OrderStatus.Pending)
             .HasConversion(
                 s => s.ToString(),
-                dbStatus => (OrderStatus)Enum.Parse(typeof(OrderStatus), dbStatus));
+                dbStatus => (OrderStatus)Enum.Parse(typeof(OrderStatus), dbStatus))
+            .HasMaxLength(20);
 
-        builder.Property(o => o.TotalPrice);
+        // One order per checkout event: makes the consumer idempotent even across redeliveries.
+        builder.HasIndex(o => o.CheckoutId).IsUnique();
+
+        builder.Property(o => o.TotalPrice).HasPrecision(18, 2);
+    }
+
+    private static void ConfigureAddress(ComplexPropertyBuilder<Address> addressBuilder)
+    {
+        addressBuilder.Property(a => a.FirstName).HasMaxLength(50).IsRequired();
+        addressBuilder.Property(a => a.LastName).HasMaxLength(50).IsRequired();
+        addressBuilder.Property(a => a.EmailAddress).HasMaxLength(255);
+        addressBuilder.Property(a => a.AddressLine).HasMaxLength(180).IsRequired();
+        addressBuilder.Property(a => a.Country).HasMaxLength(50);
+        addressBuilder.Property(a => a.State).HasMaxLength(50);
+        addressBuilder.Property(a => a.ZipCode).HasMaxLength(10).IsRequired();
     }
 }
