@@ -1,0 +1,13 @@
+﻿global using Ecommerce.Basket.Api.Models;
+global using Ecommerce.Shared.CQRS;
+global using Carter;
+global using MediatR;
+global using Mapster;
+global using FluentValidation;
+global using Ecommerce.Shared.Behaviors;
+global using Ecommerce.Shared.Exceptions;
+global using Ecommerce.Basket.Api.Exceptions;
+global using Marten;
+global using Ecommerce.Basket.Api.Data;
+global using Ecommerce.Shared.Exceptions.Handler;
+global using Ecommerce.Basket.Api.Dtos;

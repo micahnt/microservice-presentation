@@ -1,0 +1,12 @@
+﻿global using Carter;
+global using Mapster;
+global using MediatR;
+global using Marten;
+global using Ecommerce.Shared.CQRS;
+global using Ecommerce.Catalog.Api.Models;
+global using Ecommerce.Catalog.Api.Exceptions;
+global using FluentValidation;
+global using Ecommerce.Shared.Behaviors;
+global using Ecommerce.Shared.Exceptions.Handler;
+global using Ecommerce.Catalog.Api.Data;
+global using Marten.Pagination;

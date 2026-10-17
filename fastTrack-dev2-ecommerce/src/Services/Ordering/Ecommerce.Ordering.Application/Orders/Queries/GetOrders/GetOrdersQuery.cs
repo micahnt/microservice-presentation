@@ -1,0 +1,8 @@
+﻿using Ecommerce.Shared.Pagination;
+
+namespace Ecommerce.Ordering.Application.Orders.Queries.GetOrders;
+
+public record GetOrdersQuery(PaginationRequest PaginationRequest) 
+    : IQuery<GetOrdersResult>;
+
+public record GetOrdersResult(PaginatedResult<OrderDto> Orders);

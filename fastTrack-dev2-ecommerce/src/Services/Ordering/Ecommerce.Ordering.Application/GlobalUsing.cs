@@ -1,0 +1,11 @@
+﻿global using Ecommerce.Ordering.Domain.Models;
+global using Ecommerce.Ordering.Domain.ValueObjects;
+global using Ecommerce.Shared.CQRS;
+global using Ecommerce.Ordering.Application.Data;
+global using Ecommerce.Ordering.Application.Dtos;
+global using Ecommerce.Ordering.Application.Exceptions;
+global using MediatR;
+global using Microsoft.Extensions.Logging;
+global using Ecommerce.Ordering.Domain.Events;
+global using Microsoft.EntityFrameworkCore;
+global using Ecommerce.Ordering.Application.Extensions;
